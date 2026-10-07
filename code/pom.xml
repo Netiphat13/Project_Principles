@@ -78,6 +78,8 @@
 	</dependencyManagement>
 
 	<build>
+		<!-- เทสต์อยู่ที่โฟลเดอร์ test/ (อยู่นอก code/) -->
+		<testSourceDirectory>../test/java</testSourceDirectory>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
