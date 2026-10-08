@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>รายละเอียดบิล - SplitMate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../static/css/styles.css" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+    <div class="shell">
+        <aside class="side"><a href="index.html" class="logo"><i>ıl</i>
+                <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
+            </a><a class="nav" href="index.html">🏠<span>แดชบอร์ด</span></a><a class="nav"
+                href="create-bill.html">➕<span>สร้างบิล</span></a><a class="nav active"
+                href="bills.html">🧾<span>บิลของฉัน</span></a><a class="nav"
+                href="groups.html">👥<span>กลุ่ม</span></a><a class="nav" href="stats.html">📊<span>สถิติ</span></a><a
+                class="nav" href="profile.html">👤<span>โปรไฟล์</span></a>
+            <div class="promo">✨<b>หารแฟร์ขึ้นอีกขั้น</b>ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br><a
+                    href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a></div>
+            <div class="me">
+                <div class="av" data-pinit>P</div>
+                <div><b style="font-size:13px" data-pname></b>
+                    <div class="muted" style="font-size:10px" data-pemail></div>
+                </div>
+            </div>
+        </aside>
+        <div>
+            <header class="top"><span class="muted">SplitMate › <b style="color:var(--ink)">รายละเอียดบิล</b></span>
+                <div class="row"><input class="search" placeholder="ค้นหา..." aria-label="ค้นหา"><button
+                        class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button><a
+                        href="profile.html" class="av" data-pinit>P</a></div>
+            </header>
+            <main class="main"><a href="bills.html" style="color:var(--g-d);font-weight:600;font-size:12px">←
+                    กลับไปบิลของฉัน</a>
+                <div id="box" style="margin-top:12px"></div>
+            </main>
+        </div>
+    </div>
+    <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
+    <script>const l = S.get('bills', []), b = l.find(x => x.id === qid())
+        if (!b) $('#box').innerHTML = empty('🔍', 'ไม่พบบิลนี้', 'บิลอาจถูกลบไปแล้ว', '<a class="btn" href="bills.html">กลับไปบิลของฉัน</a>')
+        else {
+            $('#box').innerHTML = `<div class="head"><div><span class="tag">BILL DETAIL</span><h1>${esc(b.shop)}</h1><p class="muted">📅 ${fmtDate(b.date)} ${esc(b.time || '')}</p></div><span class="pill ${b.status}" style="font-size:13px">${ST[b.status]}</span></div>
+<div class="grid g2"><div class="card"><h2>ข้อมูลบิล</h2><div class="kv"><span class="muted">ยอดรวม</span><b>${baht(b.total)}</b></div><div class="kv"><span class="muted">จำนวนคน</span><b>${b.people} คน</b></div><div class="kv"><span class="muted">เฉลี่ยต่อคน</span><b>${baht(Math.ceil(b.total / b.people))}</b></div><div class="kv"><span class="muted">โน้ต</span><span>${esc(b.note) || '-'}</span></div></div>
+<div class="card"><h2>จัดการบิล</h2><div class="field" style="margin-top:12px"><label>สถานะการชำระ</label><select class="in" id="s">${Object.entries(ST).map(([k, t]) => `<option value="${k}"${b.status === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div><button class="btn danger block" id="del">ลบบิลนี้</button></div></div>
+<div class="card" style="margin-top:16px"><h2>รายการอาหารและผู้ร่วมจ่าย</h2>${b.items && b.items.length ? '<div class="list">' + b.items.map(i => `<div><span style="font-size:20px">${i.icon}</span><div style="flex:1"><b>${esc(i.name)}</b><div class="muted">× ${i.qty} · กินโดย ${esc((i.eaters.length ? i.eaters : b.members).join(', '))}</div></div><b>${baht(i.price * i.qty)}</b></div>`).join('') + '</div><h2 style="margin:18px 0 4px">ยอดที่แต่ละคนต้องจ่าย</h2><div class="list">' + b.members.map(n => `<div><b style="flex:1">${esc(n)}</b><b>${baht(b.shares[n])}</b><span class="pill ${b.paid[n] ? 'paid' : 'pending'}">${b.paid[n] ? 'จ่ายแล้ว' : 'รอจ่าย'}</span></div>`).join('') + '</div><p class="muted" style="margin-top:10px">ส่วนลด ' + baht(b.disc) + ' · Service ' + baht(b.svc) + ' · VAT ' + baht(b.vat) + ' · Fairness ' + b.fair + '/100</p>' : empty('🍽️', 'ยังไม่มีรายการ', 'บิลนี้ไม่มีรายการอาหาร')}</div>`
+            $('#s').onchange = e => { b.status = e.target.value; S.set('bills', l); location.reload() }
+            $('#del').onclick = () => { if (confirm('ลบบิลนี้ใช่หรือไม่?')) { S.set('bills', l.filter(x => x.id !== b.id)); location = 'bills.html' } }
+        }</script>
+</body>
+
+</html>

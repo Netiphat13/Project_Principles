@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>บิลของฉัน - SplitMate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../static/css/styles.css" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+    <div class="shell">
+        <aside class="side"><a href="index.html" class="logo"><i>ıl</i>
+                <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
+            </a><a class="nav" href="index.html">🏠<span>แดชบอร์ด</span></a><a class="nav"
+                href="create-bill.html">➕<span>สร้างบิล</span></a><a class="nav active"
+                href="bills.html">🧾<span>บิลของฉัน</span></a><a class="nav"
+                href="groups.html">👥<span>กลุ่ม</span></a><a class="nav" href="stats.html">📊<span>สถิติ</span></a><a
+                class="nav" href="profile.html">👤<span>โปรไฟล์</span></a>
+            <div class="promo">✨<b>หารแฟร์ขึ้นอีกขั้น</b>ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br><a
+                    href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a></div>
+            <div class="me">
+                <div class="av" data-pinit>P</div>
+                <div><b style="font-size:13px" data-pname></b>
+                    <div class="muted" style="font-size:10px" data-pemail></div>
+                </div>
+            </div>
+        </aside>
+        <div>
+            <header class="top"><span class="muted">SplitMate › <b style="color:var(--ink)">บิลของฉัน</b></span>
+                <div class="row"><input class="search" placeholder="ค้นหา..." aria-label="ค้นหา"><button
+                        class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button><a
+                        href="profile.html" class="av" data-pinit>P</a></div>
+            </header>
+            <main class="main">
+                <div class="head">
+                    <div><span class="tag">BILL HISTORY</span>
+                        <h1>บิลของฉัน</h1>
+                        <p class="muted">ค้นหา ติดตาม และจัดการบิลทั้งหมด</p>
+                    </div><a href="create-bill.html" class="btn">＋ สร้างบิลใหม่</a>
+                </div>
+                <div class="card row sp" style="margin-bottom:16px;flex-wrap:wrap"><input class="in" id="q"
+                        style="max-width:260px" placeholder="ค้นหาร้านหรือชื่อบิล...">
+                    <div class="chips" id="chips"></div>
+                </div>
+                <div id="list"></div>
+            </main>
+        </div>
+    </div>
+    <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
+    <script>let f = 'all'; const all = S.get('bills', []), T = [['all', 'ทั้งหมด'], ['paid', 'จ่ายแล้ว'], ['pending', 'รอจ่าย'], ['overdue', 'เกินกำหนด']]
+        function draw() {
+            const q = $('#q').value.trim().toLowerCase()
+            $('#chips').innerHTML = T.map(([k, t]) => `<button class="chip${f === k ? ' on' : ''}" data-k="${k}">${t} (${k === 'all' ? all.length : all.filter(b => b.status === k).length})</button>`).join('')
+            const l = all.filter(b => (f === 'all' || b.status === f) && b.shop.toLowerCase().includes(q))
+            $('#list').innerHTML = l.length ? '<div class="grid g3">' + l.map(b => `<div class="card"><div class="row sp"><div class="ico" style="background:#fff1e0">🍽️</div><span class="pill ${b.status}">${ST[b.status]}</span></div><h2 style="margin:12px 0 2px">${esc(b.shop)}</h2><p class="muted">📅 ${fmtDate(b.date)}</p><div class="row sp" style="border-top:1px solid var(--line);margin:10px 0;padding-top:10px"><span class="muted">👥 ${b.people} คน</span><b style="font-size:18px">${baht(b.total)}</b></div><a class="btn soft block" href="bill-detail.html?id=${b.id}">ดูรายละเอียด →</a></div>`).join('') + '</div>' : all.length ? empty('🔍', 'ไม่พบบิล', 'ลองเปลี่ยนตัวกรองหรือคำค้นหา') : empty('🧾', 'ยังไม่มีบิล', 'สร้างบิลแรกเพื่อเริ่มติดตาม', '<a class="btn" href="create-bill.html">＋ สร้างบิลใหม่</a>')
+            $$('.chip').forEach(c => c.onclick = () => { f = c.dataset.k; draw() })
+        }
+        $('#q').oninput = draw; draw()</script>
+</body>
+
+</html>
