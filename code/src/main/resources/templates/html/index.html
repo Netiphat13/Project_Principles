@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>แดชบอร์ด - SplitMate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../static/css/styles.css" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+    <div class="shell">
+        <aside class="side"><a href="index.html" class="logo"><i>ıl</i>
+                <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
+            </a><a class="nav active" href="index.html">🏠<span>แดชบอร์ด</span></a><a class="nav"
+                href="create-bill.html">➕<span>สร้างบิล</span></a><a class="nav"
+                href="bills.html">🧾<span>บิลของฉัน</span></a><a class="nav"
+                href="groups.html">👥<span>กลุ่ม</span></a><a class="nav" href="stats.html">📊<span>สถิติ</span></a><a
+                class="nav" href="profile.html">👤<span>โปรไฟล์</span></a>
+            <div class="promo">✨<b>หารแฟร์ขึ้นอีกขั้น</b>ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br><a
+                    href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a></div>
+            <div class="me">
+                <div class="av" data-pinit>P</div>
+                <div><b style="font-size:13px" data-pname></b>
+                    <div class="muted" style="font-size:10px" data-pemail></div>
+                </div>
+            </div>
+        </aside>
+        <div>
+            <header class="top"><span class="muted">SplitMate › <b style="color:var(--ink)">แดชบอร์ด</b></span>
+                <div class="row"><input class="search" placeholder="ค้นหา..." aria-label="ค้นหา"><button
+                        class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button><a
+                        href="profile.html" class="av" data-pinit>P</a></div>
+            </header>
+            <main class="main">
+                <div class="head">
+                    <div><span class="muted" id="d"></span>
+                        <h1>สวัสดี, <span data-pshort></span> 👋</h1>
+                        <p class="muted">พร้อมหารบิลมื้อนี้แบบแฟร์ ๆ หรือยัง?</p>
+                    </div><a href="create-bill.html" class="btn">＋ สร้างบิลใหม่</a>
+                </div>
+                <div class="grid g4" id="st"></div>
+                <div class="grid g2" style="margin:16px 0">
+                    <div class="card">
+                        <h2>การใช้จ่ายรายสัปดาห์</h2>
+                        <p class="muted">ภาพรวมค่าอาหาร 7 วันที่ผ่านมา</p>
+                        <div id="chart"></div>
+                    </div>
+                    <div class="card insight"><span class="tag" style="background:rgba(255,255,255,.2);color:#fff">SMART
+                            INSIGHT</span>
+                        <h2 style="margin:14px 0 4px">ยังไม่มีข้อมูลให้วิเคราะห์</h2>
+                        <p style="font-size:12px">สร้างบิลแรก แล้วระบบจะสรุปการใช้จ่ายให้ตรงนี้</p>
+                    </div>
+                </div>
+                <div class="head" style="margin-bottom:8px">
+                    <div>
+                        <h2>บิลล่าสุด</h2>
+                        <p class="muted">ติดตามและจัดการบิลของคุณ</p>
+                    </div><a href="bills.html" style="color:var(--g-d);font-weight:600">ดูทั้งหมด →</a>
+                </div>
+                <div class="card" id="recent"></div>
+            </main>
+        </div>
+    </div>
+    <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
+    <script>const bills = S.get('bills', []); $('#d').textContent = new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })
+        const due = bills.filter(b => b.status !== 'paid').reduce((a, b) => a + +b.total, 0), sum = bills.reduce((a, b) => a + +b.total, 0)
+        $('#st').innerHTML = [['🍴', 'ค่าอาหารรวม', baht(sum), '#fdeae6'], ['🧾', 'จำนวนบิล', bills.length, '#efecfd'], ['👛', 'ยอดค้างชำระ', baht(due), '#fff1e0'], ['👥', 'เพื่อนต้องคืน', baht(0), '#e6f6f1']].map(([i, l, v, bg]) => `<div class="card row stat"><div class="ico" style="background:${bg}">${i}</div><div><span class="muted">${l}</span><b>${v}</b></div></div>`).join('')
+        $('#chart').innerHTML = empty('📊', 'ยังไม่มีข้อมูลการใช้จ่าย', 'กราฟจะแสดงเมื่อมีบิล')
+        $('#recent').innerHTML = bills.length ? '<div class="list">' + bills.slice(-3).reverse().map(b => `<a href="bill-detail.html?id=${b.id}"><div class="ico" style="background:#fff1e0">🍽️</div><div style="flex:1"><b>${esc(b.shop)}</b><div class="muted">${fmtDate(b.date)} · ${b.people} คน</div></div><b>${baht(b.total)}</b><span class="pill ${b.status}">${ST[b.status]}</span></a>`).join('') + '</div>' : empty('🧾', 'ยังไม่มีบิล', 'เริ่มสร้างบิลแรกของคุณได้เลย', '<a class="btn" href="create-bill.html">＋ สร้างบิล</a>')</script>
+</body>
+
+</html>
