@@ -1,0 +1,38 @@
+# Maven
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local Spring configuration
+src/main/resources/application.properties
+src/main/resources/application-local.properties
+src/main/resources/application-secret.properties
+
+# Local database files
+postgres_data/
+postgres-data/
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend dependencies/build
+node_modules/
+dist/
+build/
