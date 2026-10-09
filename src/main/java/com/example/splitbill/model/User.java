@@ -1,9 +1,21 @@
 package com.example.splitbill.model;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "users")
@@ -13,7 +25,7 @@ public class User{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, length = 100)
     private String username;
 
     @Column(nullable = false, unique = true, length = 255)
@@ -22,8 +34,11 @@ public class User{
     @Column(nullable = false, length = 255)
     private String password;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
 
     @OneToOne(mappedBy = "user")
     private Profile profile;
@@ -37,6 +52,7 @@ public class User{
     @OneToMany(mappedBy = "user")
     private List<BillMember> billMembers = new ArrayList<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "createdBy")
     private List<Group> groups = new ArrayList<>();
 
