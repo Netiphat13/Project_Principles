@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -24,12 +26,25 @@ public class Group {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "created_by", nullable = false)
-    private User createdBy;
+   @ManyToOne
+@JoinColumn(name = "created_by", nullable = false)
+@JsonIgnoreProperties({
+    "groups",
+    "bills",
+    "billMembers",
+    "groupMembers",
+    "notifications",
+    "profile",
+    "userSetting",
+    "password"
+})
+private User createdBy;
 
     @Column(nullable = false, length = 100)
     private String name;
+
+    @Column(name = "invite_code", unique = true, length = 20)
+    private String inviteCode;
 
     @Column(columnDefinition = "TEXT")
     private String description;
@@ -107,6 +122,14 @@ public class Group {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getInviteCode() {
+    return inviteCode;
+    }
+
+    public void setInviteCode(String inviteCode) {
+    this.inviteCode = inviteCode;
     }
 
     public List<GroupMember> getMembers() {
