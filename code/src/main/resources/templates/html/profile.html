@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>โปรไฟล์ - SplitMate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../static/css/styles.css" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+    <div class="shell">
+        <aside class="side">
+            <a href="index.html" class="logo">
+                <i>ıl</i>
+                <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
+            </a>
+            <a class="nav" href="index.html">🏠<span>แดชบอร์ด</span></a>
+            <a class="nav" href="create-bill.html">➕<span>สร้างบิล</span></a>
+            <a class="nav" href="bills.html">🧾<span>บิลของฉัน</span></a>
+            <a class="nav" href="stats.html">📊<span>สถิติ</span></a>
+            <a class="nav active" href="profile.html">👤<span>โปรไฟล์</span></a>
+
+            <div class="promo">
+                ✨<b>หารแฟร์ขึ้นอีกขั้น</b>
+                ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br>
+                <a href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
+            </div>
+
+            <div class="me">
+                <div class="av" data-pinit>P</div>
+                <div>
+                    <b style="font-size:13px" data-pname></b>
+                    <div class="muted" style="font-size:10px" data-pemail></div>
+                </div>
+            </div>
+        </aside>
+
+        <div>
+            <header class="top">
+                <span class="muted">SplitMate › <b style="color:var(--ink)">โปรไฟล์</b></span>
+                <div class="row">
+                    <input class="search" placeholder="ค้นหา..." aria-label="ค้นหา">
+                    <button class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button>
+                    <a href="profile.html" class="av" data-pinit>P</a>
+                </div>
+            </header>
+
+            <main class="main">
+                <div class="head">
+                    <div>
+                        <span class="tag">MY PROFILE</span>
+                        <h1>โปรไฟล์และการตั้งค่า</h1>
+                        <p class="muted">จัดการบัญชีและปรับแต่ง SplitMate ของคุณ</p>
+                    </div>
+                </div>
+
+                <div class="grid prof-grid">
+                    <div class="card" style="text-align:center;align-self:start">
+                        <div class="av" data-pinit style="width:72px;height:72px;font-size:26px;margin:0 auto 10px"></div>
+                        <h2 data-pname></h2>
+                        <p class="muted" data-pemail></p>
+                        <p class="muted" id="bio" style="margin:8px 0"></p>
+
+                        <div class="grid g3 prof-stats" style="margin:16px 0;gap:8px">
+                            <div>
+                                <b id="n1">0</b>
+                                <div class="muted" style="font-size:10px">บิลทั้งหมด</div>
+                            </div>
+                            <div>
+                                <b id="n2">฿0</b>
+                                <div class="muted" style="font-size:10px">ใช้จ่ายรวม</div>
+                            </div>
+                            <div>
+                                <b id="n3">0</b>
+                                <div class="muted" style="font-size:10px">กลุ่ม</div>
+                            </div>
+                        </div>
+
+                        <a class="btn ghost block" href="edit-profile.html">แก้ไขโปรไฟล์</a>
+                    </div>
+
+                    <div class="card">
+                        <h2>การตั้งค่า</h2>
+
+                        <div class="row sp" style="padding:14px 0;border-bottom:1px solid var(--line)">
+                            <div class="row">
+                                <div class="ico" style="background:var(--g-l)">🔔</div>
+                                <div>
+                                    <b>การแจ้งเตือน</b>
+                                    <div class="muted">รับแจ้งเตือนเมื่อมีบิลหรือการชำระใหม่</div>
+                                </div>
+                            </div>
+                            <button class="toggle" id="t1" role="switch" aria-label="การแจ้งเตือน"></button>
+                        </div>
+
+                        <div class="row sp" style="padding:14px 0;border-bottom:1px solid var(--line)">
+                            <div class="row">
+                                <div class="ico" style="background:var(--g-l)">👛</div>
+                                <div>
+                                    <b>สกุลเงิน</b>
+                                    <div class="muted">Thai Baht (THB)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row sp" style="padding:14px 0">
+                            <div class="row">
+                                <div class="ico" style="background:var(--g-l)">🌐</div>
+                                <div>
+                                    <b>ภาษา</b>
+                                    <div class="muted">ภาษาไทย</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn danger" id="out" style="margin-top:18px">ออกจากระบบ</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
+    <script>
+        const p = getProfile(), b = S.get('bills', []);
+        $('#bio').textContent = p.bio || '';
+        $('#n1').textContent = b.length;
+        $('#n2').textContent = baht(b.reduce((a, x) => a + +x.total, 0));
+        $('#n3').textContent = S.get('groups', []).length;
+
+        const t = $('#t1'), on = S.get('notify', true);
+        t.classList.toggle('on', on);
+        t.setAttribute('aria-checked', on);
+
+        t.onclick = () => {
+            const v = !t.classList.contains('on');
+            S.set('notify', v);
+            t.classList.toggle('on', v);
+            t.setAttribute('aria-checked', v);
+        };
+
+        $('#out').onclick = () => location = 'login.html';
+    </script>
+</body>
+
+</html>

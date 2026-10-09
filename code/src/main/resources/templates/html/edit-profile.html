@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>แก้ไขโปรไฟล์ - SplitMate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../static/css/styles.css" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+    <div class="shell">
+        <aside class="side">
+            <a href="index.html" class="logo">
+                <i>ıl</i>
+                <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
+            </a>
+            <a class="nav" href="index.html">🏠<span>แดชบอร์ด</span></a>
+            <a class="nav" href="create-bill.html">➕<span>สร้างบิล</span></a>
+            <a class="nav" href="bills.html">🧾<span>บิลของฉัน</span></a>
+            <a class="nav" href="stats.html">📊<span>สถิติ</span></a>
+            <a class="nav active" href="profile.html">👤<span>โปรไฟล์</span></a>
+
+            <div class="promo">
+                ✨<b>หารแฟร์ขึ้นอีกขั้น</b>
+                ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br>
+                <a href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
+            </div>
+
+            <div class="me">
+                <div class="av" data-pinit>P</div>
+                <div>
+                    <b style="font-size:13px" data-pname></b>
+                    <div class="muted" style="font-size:10px" data-pemail></div>
+                </div>
+            </div>
+        </aside>
+
+        <div>
+            <header class="top">
+                <span class="muted">SplitMate › <b style="color:var(--ink)">แก้ไขโปรไฟล์</b></span>
+                <div class="row">
+                    <input class="search" placeholder="ค้นหา..." aria-label="ค้นหา">
+                    <button class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button>
+                    <a href="profile.html" class="av" data-pinit>P</a>
+                </div>
+            </header>
+
+            <main class="main">
+                <a href="profile.html" style="color:var(--g-d);font-weight:600;font-size:12px">← กลับไปโปรไฟล์</a>
+
+                <div class="head" style="margin-top:12px">
+                    <div>
+                        <span class="tag">EDIT PROFILE</span>
+                        <h1>แก้ไขโปรไฟล์</h1>
+                        <p class="muted">อัปเดตข้อมูลส่วนตัวของคุณ</p>
+                    </div>
+                </div>
+
+                <form id="f" class="card" style="max-width:520px">
+                    <div class="row" style="margin-bottom:18px">
+                        <div class="av" id="pv" style="width:64px;height:64px;font-size:24px"></div>
+                        <span class="muted">ตัวอักษรย่อสร้างจากชื่อของคุณ</span>
+                    </div>
+
+                    <div class="field">
+                        <label>ชื่อ-นามสกุล</label>
+                        <input class="in" name="name" required maxlength="60">
+                    </div>
+
+                    <div class="field">
+                        <label>อีเมล</label>
+                        <input class="in" type="email" name="email">
+                    </div>
+
+                    <div class="field">
+                        <label>เบอร์โทรศัพท์</label>
+                        <input class="in" type="tel" name="phone" placeholder="08x-xxx-xxxx">
+                    </div>
+
+                    <div class="field">
+                        <label>แนะนำตัว (ไม่บังคับ)</label>
+                        <textarea class="in" name="bio" rows="3" maxlength="120"></textarea>
+                    </div>
+
+                    <div class="row" style="justify-content:flex-end">
+                        <a class="btn ghost" href="profile.html">ยกเลิก</a>
+                        <button class="btn">บันทึกการเปลี่ยนแปลง</button>
+                    </div>
+                </form>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
+    <script>
+        const f = $('#f'), p = getProfile();
+
+        ['name', 'email', 'phone', 'bio'].forEach(k => f[k].value = p[k] || '');
+
+        const pv = () => $('#pv').textContent = (f.name.value[0] || 'P').toUpperCase();
+
+        pv();
+        f.name.oninput = pv;
+
+        f.onsubmit = e => {
+            e.preventDefault();
+
+            S.set('profile', {
+                name: f.name.value.trim(),
+                email: f.email.value.trim(),
+                phone: f.phone.value.trim(),
+                bio: f.bio.value.trim()
+            });
+
+            location = 'profile.html';
+        };
+    </script>
+</body>
+
+</html>
