@@ -40,7 +40,7 @@ public class Group {
 })
 private User createdBy;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 255)
     private String name;
 
     @Column(name = "invite_code", unique = true, length = 20)
@@ -49,7 +49,10 @@ private User createdBy;
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "group")
