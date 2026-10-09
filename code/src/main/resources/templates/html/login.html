@@ -22,7 +22,7 @@
         </section>
 
         <section class="r">
-            <form id="f" class="card" style="width:100%;max-width:380px;padding:28px">
+            <form id="f" class="card" method="post" action="/login" th:action="@{/login}" style="width:100%;max-width:380px;padding:28px">
                 <span class="tag">WELCOME BACK</span>
                 <h1 style="font-size:24px;margin:10px 0 4px">ยินดีต้อนรับกลับมา</h1>
                 <p class="muted" style="margin-bottom:18px">เข้าสู่ระบบเพื่อจัดการบิลของคุณ</p>
@@ -34,15 +34,16 @@
 
                 <div class="field">
                     <label>รหัสผ่าน</label>
-                    <input class="in" name="pw" type="password" placeholder="อย่างน้อย 8 ตัวอักษร" required>
+                    <input class="in" name="password" type="password" placeholder="อย่างน้อย 8 ตัวอักษร" required>
                 </div>
 
-                <div class="err" id="err"></div>
+                <div class="ok" th:if="${success}" th:text="${success}" style="color:var(--g-d);margin-bottom:8px"></div>
+                <div class="err" id="err" th:text="${error}"></div>
                 <button class="btn block">เข้าสู่ระบบ →</button>
 
                 <p class="muted" style="text-align:center;margin-top:16px">
                     ยังไม่มีบัญชี?
-                    <a href="register.html" style="color:var(--g-d);font-weight:600">สมัครสมาชิกฟรี</a>
+                    <a href="/register" style="color:var(--g-d);font-weight:600">สมัครสมาชิกฟรี</a>
                 </p>
             </form>
         </section>
@@ -50,13 +51,12 @@
 
     <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
     <script>
+        // ตรวจเบื้องต้นฝั่ง client แล้วปล่อยให้ฟอร์ม POST ไปที่ /login (ตรวจรหัสผ่านจริงที่ server)
         $('#f').onsubmit = e => {
-            e.preventDefault();
-
-            if ($('[name=pw]').value.length < 8)
-                return $('#err').textContent = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
-
-            location = 'index.html';
+            if ($('[name=password]').value.length < 8) {
+                e.preventDefault();
+                $('#err').textContent = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
+            }
         };
     </script>
 </body>

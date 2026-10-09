@@ -3,13 +3,14 @@ package com.example.splitbill.service.impl;
 import com.example.splitbill.dto.request.UserRequest;
 import com.example.splitbill.dto.response.UserResponse;
 import com.example.splitbill.exception.ConflictException;
+import com.example.splitbill.exception.ForbiddenException;
+import com.example.splitbill.exception.InvalidCredentialsException;
 import com.example.splitbill.exception.ResourceNotFoundException;
 import com.example.splitbill.mapper.UserMapper;
 import com.example.splitbill.model.User;
 import com.example.splitbill.repository.UserRepository;
 import com.example.splitbill.service.UserService;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,10 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper mapper;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository, UserMapper mapper) {
+    public UserServiceImpl(UserRepository userRepository, UserMapper mapper, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.mapper = mapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -32,7 +35,7 @@ public class UserServiceImpl implements UserService {
         User user = new User();
         user.setUsername(request.username());
         user.setEmail(request.email());
-        user.setPassword(request.password());
+        user.setPassword(passwordEncoder.encode(request.password()));
         return mapper.toResponse(userRepository.save(user));
     }
 
@@ -41,35 +44,35 @@ public class UserServiceImpl implements UserService {
         return mapper.toResponse(find(id));
     }
 
-    @Override @Transactional(readOnly = true)
-    public Page<UserResponse> findAll(Pageable pageable) {
-        return userRepository.findAll(pageable).map(mapper::toResponse);
-    }
-
     @Override
-    public UserResponse update(Long id, UserRequest request) {
+    public UserResponse update(Long id, UserRequest request, Long currentUserId) {
+        requireSelf(id, currentUserId);
         User user = find(id);
         if (!user.getEmail().equalsIgnoreCase(request.email()) && userRepository.existsByEmail(request.email())) {
             throw new ConflictException("Email is already registered");
         }
         user.setUsername(request.username());
         user.setEmail(request.email());
-        if (request.password() != null && !request.password().isBlank()) user.setPassword(request.password());
+        user.setPassword(passwordEncoder.encode(request.password()));
         return mapper.toResponse(userRepository.save(user));
     }
 
     @Override
-    public void delete(Long id) {
-        if (!userRepository.existsById(id)) throw new ResourceNotFoundException("User not found: " + id);
-        userRepository.deleteById(id);
+    public void delete(Long id, Long currentUserId) {
+        requireSelf(id, currentUserId);
+        userRepository.delete(find(id));
     }
 
     @Override @Transactional(readOnly = true)
     public UserResponse authenticate(String email, String password) {
         User user = userRepository.findByEmail(email)
-                .filter(u -> u.getPassword().equals(password))
-                .orElseThrow(() -> new ResourceNotFoundException("Invalid email or password"));
+                .filter(u -> u.getPassword() != null && passwordEncoder.matches(password, u.getPassword()))
+                .orElseThrow(InvalidCredentialsException::new);
         return mapper.toResponse(user);
+    }
+
+    private void requireSelf(Long id, Long currentUserId) {
+        if (!id.equals(currentUserId)) throw new ForbiddenException("You can only modify your own account");
     }
 
     private User find(Long id) {

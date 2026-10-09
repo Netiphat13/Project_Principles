@@ -2,26 +2,19 @@ package com.example.splitbill.service;
 
 import com.example.splitbill.dto.request.GroupRequest;
 import com.example.splitbill.dto.response.GroupResponse;
-import com.example.splitbill.model.Group;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface GroupService {
-    GroupResponse create(GroupRequest request);
+    GroupResponse create(GroupRequest request, Long currentUserId);
 
-    GroupResponse getById(Long id);
-
-    Page<GroupResponse> findAll(Pageable pageable);
+    // ดูได้เฉพาะเจ้าของกลุ่มหรือสมาชิกในกลุ่ม
+    GroupResponse getById(Long id, Long currentUserId);
 
     Page<GroupResponse> findByCreator(Long userId, Pageable pageable);
 
-    GroupResponse update(Long id, GroupRequest request);
+    // แก้ไข/ลบได้เฉพาะเจ้าของกลุ่ม
+    GroupResponse update(Long id, GroupRequest request, Long currentUserId);
 
-    void delete(Long id);
-
-    // สร้างรหัสเชิญเข้ากลุ่มที่ไม่ซ้ำกับกลุ่มอื่น
-    String generateUniqueInviteCode();
-
-    // บันทึกกลุ่มพร้อมสร้างรหัสเชิญ (ใช้ใน GroupController)
-    Group saveGroupWithInviteCode(Group group);
+    void delete(Long id, Long currentUserId);
 }

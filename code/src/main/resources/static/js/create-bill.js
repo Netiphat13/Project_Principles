@@ -997,7 +997,7 @@
       money(c.net) + ' เรียบร้อยแล้ว'
     )
 
-    location = 'bill-detail.html?id=' + id
+    location = '/bills/detail?id=' + id
   }
 
   document.addEventListener('click', e => {

@@ -1,8 +1,9 @@
 package com.example.splitbill.service.impl;
 
-import com.example.splitbill.dto.request.BillItemRequest;
 import com.example.splitbill.dto.request.BillRequest;
 import com.example.splitbill.dto.response.BillResponse;
+import com.example.splitbill.dto.response.BillSummary;
+import com.example.splitbill.exception.ForbiddenException;
 import com.example.splitbill.exception.ResourceNotFoundException;
 import com.example.splitbill.mapper.BillMapper;
 import com.example.splitbill.model.Bill;
@@ -40,21 +41,21 @@ public class BillServiceImpl implements BillService {
     }
 
     @Override
-    public BillResponse create(BillRequest request) {
+    public BillResponse create(BillRequest request, Long currentUserId) {
         Bill bill = new Bill();
+        bill.setCreatedBy(userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUserId)));
+        bill.setStatus("DRAFT");
         applyFields(bill, request);
         Bill saved = billRepository.save(bill);
         persistItems(saved, request);
         persistSplitConfig(saved, request);
-        return mapper.toResponse(find(saved.getId()));
+        return mapper.toResponse(saved);
     }
 
     @Override @Transactional(readOnly = true)
-    public BillResponse getById(Long id) { return mapper.toResponse(find(id)); }
-
-    @Override @Transactional(readOnly = true)
-    public Page<BillResponse> findAll(Pageable pageable) {
-        return billRepository.findAll(pageable).map(mapper::toResponse);
+    public BillResponse getById(Long id, Long currentUserId) {
+        return mapper.toResponse(findOwned(id, currentUserId));
     }
 
     @Override @Transactional(readOnly = true)
@@ -63,26 +64,32 @@ public class BillServiceImpl implements BillService {
     }
 
     @Override
-    public BillResponse update(Long id, BillRequest request) {
-        Bill bill = find(id);
+    public BillResponse update(Long id, BillRequest request, Long currentUserId) {
+        Bill bill = findOwned(id, currentUserId);
         applyFields(bill, request);
         billItemRepository.deleteAll(bill.getItems());
         bill.getItems().clear();
         Bill saved = billRepository.save(bill);
         persistItems(saved, request);
         persistSplitConfig(saved, request);
-        return mapper.toResponse(find(saved.getId()));
+        return mapper.toResponse(saved);
     }
 
     @Override
-    public void delete(Long id) {
-        if (!billRepository.existsById(id)) throw new ResourceNotFoundException("Bill not found: " + id);
-        billRepository.deleteById(id);
+    public void delete(Long id, Long currentUserId) {
+        billRepository.delete(findOwned(id, currentUserId));
+    }
+
+    @Override @Transactional(readOnly = true)
+    public BillSummary summarize(Long userId) {
+        long count = billRepository.countByCreatedById(userId);
+        BigDecimal total = billRepository.sumTotalAmountByCreatedById(userId).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal average = count == 0 ? BigDecimal.ZERO.setScale(2)
+                : total.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
+        return new BillSummary(count, total, average);
     }
 
     private void applyFields(Bill bill, BillRequest request) {
-        bill.setCreatedBy(userRepository.findById(request.createdById())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + request.createdById())));
         bill.setRestaurantName(request.restaurantName());
         bill.setBillDate(request.billDate());
         bill.setBillTime(request.billTime());
@@ -90,7 +97,6 @@ public class BillServiceImpl implements BillService {
         bill.setDiscount(zero(request.discount()));
         bill.setServiceCharge(zero(request.serviceCharge()));
         bill.setVat(zero(request.vat()));
-        bill.setStatus(bill.getStatus() == null ? "DRAFT" : bill.getStatus());
 
         BigDecimal subtotal = request.items() == null ? BigDecimal.ZERO :
                 request.items().stream()
@@ -112,7 +118,8 @@ public class BillServiceImpl implements BillService {
             item.setTotalPrice(i.unitPrice().multiply(BigDecimal.valueOf(i.quantity())).setScale(2, RoundingMode.HALF_UP));
             return item;
         }).toList();
-        billItemRepository.saveAll(items);
+        // ใส่กลับเข้า bill ด้วย เพื่อให้ response ที่ map จาก entity เดิมมีรายการครบ
+        bill.getItems().addAll(billItemRepository.saveAll(items));
     }
 
     private void persistSplitConfig(Bill bill, BillRequest request) {
@@ -121,13 +128,18 @@ public class BillServiceImpl implements BillService {
                 .orElseGet(SplitConfig::new);
         config.setBill(bill);
         config.setSplitMethod(request.splitMethod());
-        config.setConfigData("{}");
-        splitConfigRepository.save(config);
+        if (config.getConfigData() == null) config.setConfigData("{}");
+        bill.setSplitConfig(splitConfigRepository.save(config));
     }
 
     private BigDecimal zero(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
 
-    private Bill find(Long id) {
-        return billRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Bill not found: " + id));
+    private Bill findOwned(Long id, Long currentUserId) {
+        Bill bill = billRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Bill not found: " + id));
+        if (!bill.getCreatedBy().getId().equals(currentUserId)) {
+            throw new ForbiddenException("You do not have access to bill " + id);
+        }
+        return bill;
     }
 }
