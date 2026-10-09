@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import com.example.splitbill.model.Bill;
 
@@ -18,6 +19,12 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     // ค้นหาบิลตามสถานะ
     List<Bill> findByStatus(String status);
+
+    @Query("SELECT COUNT(b) FROM Bill b")
+    long countAllBills();
+
+    @Query("SELECT COALESCE(SUM(b.totalAmount), 0) FROM Bill b")
+    java.math.BigDecimal sumTotalAmount();
 
     // ค้นหาบิลตามช่วงวันที่
     List<Bill> findByBillDateBetween(
