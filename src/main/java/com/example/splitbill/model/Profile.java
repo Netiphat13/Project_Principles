@@ -21,12 +21,13 @@ public class Profile {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Column(length = 100)
+    @Column(length = 255)
     private String displayName;
 
+    @Column(length = 500)
     private String avatarUrl;
 
-    @Column(length = 30)
+    @Column(length = 50)
     private String phone;
 
     @Column(columnDefinition = "TEXT")
