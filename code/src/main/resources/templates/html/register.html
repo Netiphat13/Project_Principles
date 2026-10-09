@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>สร้างบัญชี SplitMate - SplitMate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../static/css/styles.css" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+    <div class="auth">
+        <section class="l">
+            <div class="logo">
+                <i>ıl</i>
+                <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
+            </div>
+            <span class="tag" style="width:fit-content">SMART BILL SPLITTING</span>
+            <h1>กินด้วยกัน<br><em>จ่ายอย่างแฟร์</em></h1>
+            <p class="muted" style="font-size:14px">เปลี่ยนทุกมื้อกับเพื่อนให้จบง่าย แบ่งตามที่กิน เช็กความแฟร์ และลดจำนวนครั้งในการโอน</p>
+        </section>
+
+        <section class="r">
+            <form id="f" class="card" method="post" action="/register" th:action="@{/register}" style="width:100%;max-width:380px;padding:28px">
+                <span class="tag">CREATE ACCOUNT</span>
+                <h1 style="font-size:24px;margin:10px 0 4px">สร้างบัญชี SplitMate</h1>
+                <p class="muted" style="margin-bottom:18px">เริ่มแบ่งทุกบิลกับเพื่อนอย่างแฟร์</p>
+
+                <div class="field">
+                    <label>ชื่อ</label>
+                    <input class="in" name="username" type="text" placeholder="ชื่อของคุณ" required>
+                </div>
+
+                <div class="field">
+                    <label>อีเมล</label>
+                    <input class="in" name="email" type="email" placeholder="name@email.com" required>
+                </div>
+
+                <div class="field">
+                    <label>รหัสผ่าน</label>
+                    <input class="in" name="password" type="password" placeholder="อย่างน้อย 8 ตัวอักษร" required>
+                </div>
+
+                <div class="field">
+                    <label>ยืนยันรหัสผ่าน</label>
+                    <input class="in" name="pw2" type="password" placeholder="กรอกรหัสผ่านอีกครั้ง" required>
+                </div>
+
+                <div class="err" id="err" th:text="${error}"></div>
+                <button class="btn block">สร้างบัญชี →</button>
+
+                <p class="muted" style="text-align:center;margin-top:16px">
+                    มีบัญชีอยู่แล้ว?
+                    <a href="/login" style="color:var(--g-d);font-weight:600">เข้าสู่ระบบ</a>
+                </p>
+            </form>
+        </section>
+    </div>
+
+    <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
+    <script>
+        $('#f').onsubmit = e => {
+            const f = e.target;
+            const fail = msg => { e.preventDefault(); $('#err').textContent = msg; };
+
+            if (f.password.value.length < 8) return fail('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+            if (f.password.value !== f.pw2.value) return fail('รหัสผ่านไม่ตรงกัน');
+            // ข้อมูลผู้ใช้จะถูกดึงจาก server หลังล็อกอิน (ดู app.js) จึงไม่ต้องเก็บใน localStorage ตรงนี้
+        };
+    </script>
+</body>
+
+</html>
