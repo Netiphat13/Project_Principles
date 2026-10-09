@@ -1,9 +1,16 @@
 package com.example.splitbill.repository;
 
-import com.example.splitbill.model.SplitConfig;
-import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.example.splitbill.model.SplitConfig;
+
 public interface SplitConfigRepository extends JpaRepository<SplitConfig, Long> {
-    Optional<SplitConfig> findByBillId(Long billId);
+
+    // ค้นหาการตั้งค่าการแบ่งเงินจาก Bill ID
+    Optional<SplitConfig> findByBill_Id(Long billId);
+
+    // ค้นหาการตั้งค่าตามวิธีแบ่งเงิน
+    java.util.List<SplitConfig> findBySplitMethod(String splitMethod);
 }

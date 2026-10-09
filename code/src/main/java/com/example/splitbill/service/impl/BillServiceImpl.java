@@ -117,7 +117,7 @@ public class BillServiceImpl implements BillService {
 
     private void persistSplitConfig(Bill bill, BillRequest request) {
         if (request.splitMethod() == null || request.splitMethod().isBlank()) return;
-        SplitConfig config = splitConfigRepository.findByBillId(bill.getId())
+        SplitConfig config = splitConfigRepository.findByBill_Id(bill.getId())
                 .orElseGet(SplitConfig::new);
         config.setBill(bill);
         config.setSplitMethod(request.splitMethod());

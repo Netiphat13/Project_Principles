@@ -27,7 +27,7 @@ public class Payment {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
-    @Column(length = 30)
+    @Column(length = 50)
     private String status;
 
     @Column(length = 50)

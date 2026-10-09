@@ -2,6 +2,7 @@ package com.example.splitbill.service;
 
 import com.example.splitbill.dto.request.GroupRequest;
 import com.example.splitbill.dto.response.GroupResponse;
+import com.example.splitbill.model.Group;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -17,4 +18,10 @@ public interface GroupService {
     GroupResponse update(Long id, GroupRequest request);
 
     void delete(Long id);
+
+    // สร้างรหัสเชิญเข้ากลุ่มที่ไม่ซ้ำกับกลุ่มอื่น
+    String generateUniqueInviteCode();
+
+    // บันทึกกลุ่มพร้อมสร้างรหัสเชิญ (ใช้ใน GroupController)
+    Group saveGroupWithInviteCode(Group group);
 }

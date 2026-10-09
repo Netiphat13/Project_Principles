@@ -25,13 +25,16 @@ public class SplitConfig {
     @JoinColumn(name = "bill_id", nullable = false, unique = true)
     private Bill bill;
 
-    @Column(nullable = false, length = 30)
+    @Column(name = "split_method", nullable = false, length = 50)
     private String splitMethod;
 
     @Column(columnDefinition = "jsonb")
     private String configData;
 
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     public SplitConfig() {

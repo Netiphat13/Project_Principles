@@ -13,12 +13,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+
 @Service
 @Transactional
 public class GroupServiceImpl implements GroupService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final GroupMapper mapper;
+    private final SecureRandom random = new SecureRandom();
+
+    private static final String INVITE_CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final int INVITE_CODE_LENGTH = 8;
 
     public GroupServiceImpl(GroupRepository groupRepository, UserRepository userRepository, GroupMapper mapper) {
         this.groupRepository = groupRepository;
@@ -33,7 +39,7 @@ public class GroupServiceImpl implements GroupService {
         group.setDescription(request.description());
         group.setCreatedBy(userRepository.findById(request.createdById())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + request.createdById())));
-        return mapper.toResponse(groupRepository.save(group));
+        return mapper.toResponse(saveGroupWithInviteCode(group));
     }
 
     @Override @Transactional(readOnly = true)
@@ -65,6 +71,25 @@ public class GroupServiceImpl implements GroupService {
     public void delete(Long id) {
         if (!groupRepository.existsById(id)) throw new ResourceNotFoundException("Group not found: " + id);
         groupRepository.deleteById(id);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public String generateUniqueInviteCode() {
+        String code;
+        do {
+            StringBuilder builder = new StringBuilder(INVITE_CODE_LENGTH);
+            for (int i = 0; i < INVITE_CODE_LENGTH; i++) {
+                builder.append(INVITE_CODE_CHARACTERS.charAt(random.nextInt(INVITE_CODE_CHARACTERS.length())));
+            }
+            code = builder.toString();
+        } while (groupRepository.existsByInviteCode(code));
+        return code;
+    }
+
+    @Override
+    public Group saveGroupWithInviteCode(Group group) {
+        group.setInviteCode(generateUniqueInviteCode());
+        return groupRepository.save(group);
     }
 
     private Group find(Long id) {

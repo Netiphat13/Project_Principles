@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>กลุ่ม - SplitMate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../static/css/styles.css" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+    <div class="shell">
+        <aside class="side"><a href="index.html" class="logo"><i>ıl</i>
+                <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
+            </a><a class="nav" href="index.html">🏠<span>แดชบอร์ด</span></a><a class="nav"
+                href="create-bill.html">➕<span>สร้างบิล</span></a><a class="nav"
+                href="bills.html">🧾<span>บิลของฉัน</span></a><a class="nav active"
+                href="groups.html">👥<span>กลุ่ม</span></a><a class="nav" href="stats.html">📊<span>สถิติ</span></a><a
+                class="nav" href="profile.html">👤<span>โปรไฟล์</span></a>
+            <div class="promo">✨<b>หารแฟร์ขึ้นอีกขั้น</b>ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br><a
+                    href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a></div>
+            <div class="me">
+                <div class="av" data-pinit>P</div>
+                <div><b style="font-size:13px" data-pname></b>
+                    <div class="muted" style="font-size:10px" data-pemail></div>
+                </div>
+            </div>
+        </aside>
+        <div>
+            <header class="top"><span class="muted">SplitMate › <b style="color:var(--ink)">กลุ่ม</b></span>
+                <div class="row"><input class="search" placeholder="ค้นหา..." aria-label="ค้นหา"><button
+                        class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button><a
+                        href="profile.html" class="av" data-pinit>P</a></div>
+            </header>
+            <main class="main">
+                <div class="head">
+                    <div><span class="tag">MY GROUPS</span>
+                        <h1>กลุ่มของฉัน</h1>
+                        <p class="muted">หารบิลจ่ายขึ้นแก๊งประจำ</p>
+                    </div><button class="btn" id="new">＋ สร้างกลุ่ม</button>
+                </div>
+                <div id="list"></div>
+                <dialog id="dlg">
+                    <form id="f" method="dialog">
+                        <h2 style="margin-bottom:14px">สร้างกลุ่มใหม่</h2>
+                        <div class="field"><label>ชื่อกลุ่ม</label><input class="in" name="name" required maxlength="40"
+                                placeholder="เช่น เพื่อนมหาลัย"></div>
+                        <div class="field"><label>ไอคอน</label>
+                            <div class="emoji-pick"><label><input type="radio" name="ic" value="🍜"
+                                        checked><span>🍜</span></label><label><input type="radio" name="ic"
+                                        value="🎓"><span>🎓</span></label><label><input type="radio" name="ic"
+                                        value="🏠"><span>🏠</span></label><label><input type="radio" name="ic"
+                                        value="🍕"><span>🍕</span></label><label><input type="radio" name="ic"
+                                        value="🍻"><span>🍻</span></label><label><input type="radio" name="ic"
+                                        value="🏖"><span>🏖</span></label><label><input type="radio" name="ic"
+                                        value="️"><span>️</span></label></div>
+                        </div>
+                        <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost"
+                                id="cancel">ยกเลิก</button><button class="btn">สร้างกลุ่ม</button></div>
+                    </form>
+                </dialog>
+            </main>
+        </div>
+    </div>
+    <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
+    <script>const tones = ['mint', 'peach', 'lilac']; let g = S.get('groups', [])
+        function draw() { $('#list').innerHTML = g.length ? '<div class="grid g3">' + g.map((x, i) => `<div class="card gc"><div class="top2 ${tones[i % 3]}">${x.icon}<span class="muted">👥 ${x.members}</span></div><div class="bd"><h2>${esc(x.name)}</h2><p class="muted">${x.members} สมาชิก · 0 บิล</p><div class="grid g2e" style="border-top:1px solid var(--line);margin:12px 0;padding-top:10px;gap:8px"><div><span class="muted">ใช้จ่ายรวม</span><br><b>${baht(0)}</b></div><div><span class="muted">รหัสเชิญ</span><br><b>${x.code}</b></div></div><a class="btn ghost block" href="group-detail.html?id=${x.id}">ดูรายละเอียด →</a></div></div>`).join('') + '</div>' : empty('👥', 'ยังไม่มีกลุ่ม', 'สร้างกลุ่มแรกเพื่อเริ่มหารบิลกับเพื่อน', '') }
+        $('#new').onclick = () => $('#dlg').showModal(); $('#cancel').onclick = () => $('#dlg').close()
+        $('#f').onsubmit = e => { const f = e.target; g.push({ id: newId(g), name: f.name.value.trim(), icon: f.ic.value, members: 1, code: Math.random().toString(36).slice(2, 8).toUpperCase() }); S.set('groups', g); notify('สร้างกลุ่ม "' + g[g.length - 1].name + '" เรียบร้อยแล้ว'); draw() }
+        draw()</script>
+</body>
+
+</html>

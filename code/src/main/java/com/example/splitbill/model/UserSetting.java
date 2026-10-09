@@ -25,15 +25,18 @@ public class UserSetting {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Column(length = 10)
+    @Column(length = 20)
     private String language;
 
     @Column(length = 10)
     private String currency;
 
-    private Boolean notificationEnabled;
-
+    @Column(name = "notification_enabled", nullable = false)
+    private Boolean notificationEnabled = true;
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     public UserSetting() {

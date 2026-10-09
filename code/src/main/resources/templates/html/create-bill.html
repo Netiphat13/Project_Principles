@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>สร้างบิล - SplitMate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../static/css/styles.css" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+    <div class="shell">
+        <aside class="side"><a href="index.html" class="logo"><i>ıl</i>
+                <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
+            </a><a class="nav" href="index.html">🏠<span>แดชบอร์ด</span></a><a class="nav active"
+                href="create-bill.html">➕<span>สร้างบิล</span></a><a class="nav"
+                href="bills.html">🧾<span>บิลของฉัน</span></a><a class="nav"
+                href="stats.html">📊<span>สถิติ</span></a><a class="nav" href="profile.html">👤<span>โปรไฟล์</span></a>
+            <div class="promo">✨<b>หารแฟร์ขึ้นอีกขั้น</b>ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br><a
+                    href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a></div>
+            <div class="me">
+                <div class="av" data-pinit>P</div>
+                <div><b style="font-size:13px" data-pname></b>
+                    <div class="muted" style="font-size:10px" data-pemail></div>
+                </div>
+            </div>
+        </aside>
+        <div>
+            <header class="top"><span class="muted">SplitMate › <b style="color:var(--ink)">สร้างบิล</b></span>
+                <div class="row"><input class="search" placeholder="ค้นหา..." aria-label="ค้นหา"><button
+                        class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button><a
+                        href="profile.html" class="av" data-pinit>P</a></div>
+            </header>
+            <main class="main">
+                <div id="app"></div>
+                <dialog id="dI">
+                    <form id="fI"></form>
+                </dialog>
+                <dialog id="dF">
+                    <form id="fF">
+                        <h2 style="margin-bottom:14px">เพิ่มเพื่อน</h2>
+                        <div class="field"><label>ชื่อเพื่อน</label><input class="in" name="fname" required
+                                maxlength="30" placeholder="เช่น Oak"></div>
+                        <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost"
+                                data-close>ยกเลิก</button><button class="btn">เพิ่มเพื่อน</button></div>
+                    </form>
+                </dialog>
+            </main>
+        </div>
+    </div>
+    <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
+    <script src="../../static/js/create-bill.js" th:src="@{/js/create-bill.js}"></script>
+</body>
+
+</html>

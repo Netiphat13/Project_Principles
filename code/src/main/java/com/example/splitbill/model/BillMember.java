@@ -1,9 +1,19 @@
 package com.example.splitbill.model;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "bill_members")
@@ -22,11 +32,13 @@ public class BillMember {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column(name = "guest_name", length = 255)
     private String guestName;
 
     @Column(unique = true, length = 255)
     private String guestToken;
 
+    @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 
     @OneToMany(mappedBy = "billMember")
