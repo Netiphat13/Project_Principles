@@ -1,0 +1,34 @@
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: splitmate-db
+    environment:
+      POSTGRES_DB: splitmate
+      POSTGRES_USER: splitmate
+      POSTGRES_PASSWORD: splitmate
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U splitmate -d splitmate"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: splitmate-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/splitmate
+      SPRING_DATASOURCE_USERNAME: splitmate
+      SPRING_DATASOURCE_PASSWORD: splitmate
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
