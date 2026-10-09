@@ -28,9 +28,10 @@ public class GroupMember {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(length = 30)
+    @Column(length = 50)
     private String role;
 
+    @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 
     public GroupMember() {
