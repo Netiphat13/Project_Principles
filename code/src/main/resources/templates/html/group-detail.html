@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>กลุ่ม - SplitMate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../static/css/styles.css" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+    <div class="shell">
+        <aside class="side"><a href="/home" class="logo"><i>ıl</i>
+                <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
+            </a><a class="nav" href="/home">🏠<span>แดชบอร์ด</span></a><a class="nav"
+                href="/bills/new">➕<span>สร้างบิล</span></a><a class="nav"
+                href="/bills">🧾<span>บิลของฉัน</span></a><a class="nav active"
+                href="/groups">👥<span>กลุ่ม</span></a><a class="nav" href="/stats">📊<span>สถิติ</span></a><a
+                class="nav" href="/profile">👤<span>โปรไฟล์</span></a>
+            <div class="promo">✨<b>หารแฟร์ขึ้นอีกขั้น</b>ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br><a
+                    href="/bills/new" style="color:var(--g-d);font-weight:600">ลองเลย →</a></div>
+            <div class="me">
+                <div class="av" data-pinit>P</div>
+                <div><b style="font-size:13px" data-pname></b>
+                    <div class="muted" style="font-size:10px" data-pemail></div>
+                </div>
+            </div>
+        </aside>
+        <div>
+            <header class="top"><span class="muted">SplitMate › <b style="color:var(--ink)">กลุ่ม</b></span>
+                <div class="row"><input class="search" placeholder="ค้นหา..." aria-label="ค้นหา"><button
+                        class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button><a
+                        href="/profile" class="av" data-pinit>P</a></div>
+            </header>
+            <main class="main"><a href="/groups" style="color:var(--g-d);font-weight:600;font-size:12px">←
+                    กลับไปที่กลุ่ม</a>
+                <div id="box" style="margin-top:12px"></div>
+            </main>
+        </div>
+    </div>
+    <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
+    <script>const g = S.get('groups', []).find(x => x.id === qid())
+        if (!g) $('#box').innerHTML = empty('🔍', 'ไม่พบกลุ่มนี้', '', '<a class="btn" href="/groups">กลับไปที่กลุ่ม</a>')
+        else $('#box').innerHTML = `<div class="card row sp mint" style="margin-bottom:16px;flex-wrap:wrap"><div class="row"><span style="font-size:36px">${g.icon}</span><div><span class="tag">ACTIVE GROUP</span><h1 style="font-size:26px">${esc(g.name)}</h1><span class="muted">${g.members} สมาชิก</span></div></div><div class="row"><span class="muted">รหัสเชิญ</span><span class="code">${g.code}</span><button class="btn ghost" id="cp">คัดลอก</button></div></div>
+<div class="grid g3"><div class="card stat"><span class="muted">ค่าใช้จ่ายรวม</span><b>${baht(0)}</b></div><div class="card stat"><span class="muted">จำนวนบิล</span><b>0</b></div><div class="card stat"><span class="muted">สมาชิก</span><b>${g.members}</b></div></div>
+<div class="grid g2" style="margin-top:16px"><div class="card"><h2>สมาชิก</h2><div class="list"><div><div class="av" data-pinit></div><div style="flex:1"><b data-pname></b><div class="muted">ผู้สร้างกลุ่ม</div></div></div></div></div><div class="card"><h2>บิลล่าสุด</h2>${empty('🧾', 'ยังไม่มีบิลในกลุ่ม', '')}</div></div>`
+        if (g) { $('#cp').onclick = () => navigator.clipboard?.writeText(g.code); const p = getProfile(); $$('[data-pname]', $('#box')).forEach(e => e.textContent = p.name); $$('[data-pinit]', $('#box')).forEach(e => e.textContent = p.name[0]) }</script>
+</body>
+
+</html>
