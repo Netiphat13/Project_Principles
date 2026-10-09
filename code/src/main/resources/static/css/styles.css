@@ -506,6 +506,40 @@ h2 {
     justify-items: center
 }
 
+.drop.drag {
+    border-color: var(--g);
+    background: var(--g-l);
+    transform: translateY(-1px)
+}
+
+.receipt-file {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    text-align: left;
+    font-size: 12px
+}
+
+.receipt-preview {
+    width: 100%;
+    max-height: 360px;
+    object-fit: contain;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff
+}
+
+.receipt-detail {
+    margin-top: 14px;
+    max-height: 620px
+}
+
 .opt {
     display: flex;
     gap: 12px;
@@ -765,6 +799,48 @@ dialog::backdrop {
     border-radius: 12px
 }
 
+.invite-card {
+    margin-top: 14px;
+    margin-bottom: 16px;
+    padding: 18px 20px;
+    border: 1px solid #bfe9dd;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #effaf7 0%, #f8fcfb 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.invite-code-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.invite-code-wrap .muted {
+    font-size: 11px;
+    width: 100%;
+    text-align: right;
+}
+
+@media (max-width: 760px) {
+    .invite-card {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .invite-code-wrap {
+        justify-content: flex-start;
+    }
+
+    .invite-code-wrap .muted {
+        text-align: left;
+    }
+}
+
 .err {
     color: var(--red);
     font-size: 12px;
@@ -950,4 +1026,455 @@ dialog {
     height: 8px;
     border-radius: 50%;
     background: var(--red)
+}
+
+/* item-based eater picker */
+.eat-list {
+    display: grid;
+    gap: 10px
+}
+
+.eat-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff
+}
+
+.eat-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 160px
+}
+
+.eat-ico {
+    font-size: 22px
+}
+
+.eat-av {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px
+}
+
+.eat-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: none;
+    border: 0;
+    padding: 2px 4px;
+    cursor: pointer;
+    opacity: .4;
+    transition: opacity .15s, transform .15s
+}
+
+.eat-btn:hover {
+    opacity: .75;
+    transform: translateY(-1px)
+}
+
+.eat-btn.on {
+    opacity: 1
+}
+
+.eat-btn small {
+    font-size: 10px;
+    color: var(--muted, #6b7280);
+    max-width: 52px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+}
+
+.eat-ck {
+    position: absolute;
+    top: -2px;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--g-d, #0f9d7a);
+    color: #fff;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    box-sizing: content-box
+}
+
+.eat-warn {
+    flex-basis: 100%;
+    font-size: 12px
+}
+
+
+/* v5: payment slip workflow */
+.payment-self-card {
+    border: 1px solid #bfe9dd;
+    background: linear-gradient(135deg, #effaf7 0%, #f8fcfb 100%);
+}
+
+.payment-upload {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+.payment-members {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.payment-member {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px;
+    background: #fff;
+}
+
+.payment-member-head {
+    align-items: center;
+    gap: 12px;
+}
+
+.payment-status {
+    width: 130px;
+    min-width: 130px;
+}
+
+.slip-box {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px dashed #b7ddd3;
+    border-radius: 14px;
+    background: #fbfefd;
+}
+
+.payment-slip-preview {
+    width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    margin-top: 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.slip-meta {
+    margin-top: 8px;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.slip-pdf {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.slip-pdf>span {
+    font-size: 24px;
+}
+
+.slip-pdf>div {
+    flex: 1;
+    min-width: 0;
+}
+
+.slip-empty {
+    color: var(--mut);
+    font-size: 12px;
+    padding: 8px 0;
+}
+
+.owner-paid-note {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--g-l);
+    color: var(--g-d);
+    font-size: 12px;
+}
+
+@media(max-width:760px) {
+    .payment-member-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .payment-status {
+        width: 100%;
+    }
+
+    .payment-upload {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+/* v6: responsive สำหรับมือถือ (393×852, 430×932 และขนาดใกล้เคียง) */
+.shell>div,
+.main,
+.grid>*,
+.row>* {
+    min-width: 0
+}
+
+.top>.muted {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0
+}
+
+.prof-grid {
+    grid-template-columns: 300px 1fr
+}
+
+@media(max-width:960px) {
+    .prof-grid {
+        grid-template-columns: 1fr
+    }
+
+    .split {
+        grid-template-columns: 1fr !important
+    }
+}
+
+@media(max-width:720px) {
+    html {
+        -webkit-text-size-adjust: 100%
+    }
+
+    body {
+        overflow-x: hidden
+    }
+
+    .shell {
+        grid-template-columns: minmax(0, 1fr)
+    }
+
+    /* แถบเมนูล่าง: ซ่อนข้อความ เหลือไอคอน 5 อันเท่า ๆ กัน */
+    .side {
+        left: 0;
+        right: 0;
+        gap: 2px;
+        padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+        box-shadow: 0 -4px 16px rgba(20, 48, 43, .06)
+    }
+
+    .side .nav {
+        flex: 1;
+        min-width: 0;
+        justify-content: center;
+        padding: 12px 0;
+        font-size: 22px;
+        line-height: 1;
+        box-shadow: none
+    }
+
+    .side .nav span {
+        display: none
+    }
+
+    .side .nav.active {
+        box-shadow: none
+    }
+
+    .top {
+        padding: 0 14px;
+        gap: 10px
+    }
+
+    .top .row {
+        gap: 8px;
+        flex: none
+    }
+
+    .main {
+        padding: 18px 14px calc(90px + env(safe-area-inset-bottom, 0px))
+    }
+
+    .head {
+        align-items: flex-start
+    }
+
+    .card {
+        padding: 16px
+    }
+
+    .g4 {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px
+    }
+
+    .g4>.card {
+        padding: 14px
+    }
+
+    .g4 .row {
+        gap: 10px
+    }
+
+    .g4 .ico {
+        width: 36px;
+        height: 36px;
+        font-size: 16px
+    }
+
+    .stat b {
+        font-size: 20px
+    }
+
+    .g3,
+    .g2e {
+        grid-template-columns: 1fr
+    }
+
+    .mm {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px
+    }
+
+    .mgrid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px
+    }
+
+    .bars {
+        gap: 8px
+    }
+
+    .steps {
+        padding: 12px 14px;
+        gap: 14px;
+        -webkit-overflow-scrolling: touch
+    }
+
+    .steps div {
+        flex: none
+    }
+
+    .drop {
+        padding: 20px 14px
+    }
+
+    /* ป้องกัน iOS zoom เวลาโฟกัสช่องกรอก และให้กดง่าย */
+    .in,
+    .field input,
+    .field textarea,
+    .field select,
+    input,
+    select,
+    textarea {
+        font-size: 16px
+    }
+
+    .in {
+        min-height: 46px;
+        -webkit-appearance: none;
+        appearance: none
+    }
+
+    input[type="date"].in,
+    input[type="time"].in {
+        display: block
+    }
+
+    .btn {
+        min-height: 44px;
+        justify-content: center
+    }
+
+    .btn.sm {
+        min-height: 36px
+    }
+
+    .list>div {
+        gap: 10px
+    }
+
+    .kv {
+        gap: 10px;
+        flex-wrap: wrap
+    }
+
+    .num {
+        width: 80px
+    }
+
+    .eat-row {
+        padding: 12px
+    }
+
+    .eat-info {
+        min-width: 0;
+        flex: 1 1 100%
+    }
+
+    .invite-card {
+        padding: 16px
+    }
+
+    .payment-member {
+        padding: 12px
+    }
+
+    dialog {
+        width: calc(100vw - 32px);
+        padding: 18px
+    }
+
+    .auth .r {
+        padding: 20px 16px
+    }
+
+    .auth .box,
+    .auth .card {
+        max-width: 100% !important
+    }
+
+    .auth .card {
+        padding: 22px !important
+    }
+}
+
+@media(max-width:480px) {
+    h1 {
+        font-size: 22px
+    }
+
+    .top .search {
+        display: none
+    }
+
+    .insight .big {
+        font-size: 30px
+    }
+}
+
+@media(max-width:720px) {
+    .prof-stats {
+        grid-template-columns: repeat(3, 1fr)
+    }
 }
