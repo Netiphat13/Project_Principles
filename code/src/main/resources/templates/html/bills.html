@@ -12,21 +12,21 @@
 <body>
     <div class="shell">
         <aside class="side">
-            <a href="index.html" class="logo">
+            <a href="/home" class="logo">
                 <i>ıl</i>
                 <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
             </a>
 
-            <a class="nav" href="index.html">🏠<span>แดชบอร์ด</span></a>
-            <a class="nav" href="create-bill.html">➕<span>สร้างบิล</span></a>
-            <a class="nav active" href="bills.html">🧾<span>บิลของฉัน</span></a>
-            <a class="nav" href="stats.html">📊<span>สถิติ</span></a>
-            <a class="nav" href="profile.html">👤<span>โปรไฟล์</span></a>
+            <a class="nav" href="/home">🏠<span>แดชบอร์ด</span></a>
+            <a class="nav" href="/bills/new">➕<span>สร้างบิล</span></a>
+            <a class="nav active" href="/bills">🧾<span>บิลของฉัน</span></a>
+            <a class="nav" href="/stats">📊<span>สถิติ</span></a>
+            <a class="nav" href="/profile">👤<span>โปรไฟล์</span></a>
 
             <div class="promo">
                 ✨<b>หารแฟร์ขึ้นอีกขั้น</b>
                 ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br>
-                <a href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
+                <a href="/bills/new" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
             </div>
 
             <div class="me">
@@ -45,7 +45,7 @@
                 <div class="row">
                     <input class="search" placeholder="ค้นหา..." aria-label="ค้นหา">
                     <button class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button>
-                    <a href="profile.html" class="av" data-pinit>P</a>
+                    <a href="/profile" class="av" data-pinit>P</a>
                 </div>
             </header>
 
@@ -59,7 +59,7 @@
 
                     <div class="row">
                         <button type="button" class="btn ghost" id="joinBill">🔑 กรอกรหัสเข้าร่วมบิล</button>
-                        <a href="create-bill.html" class="btn">＋ สร้างบิลใหม่</a>
+                        <a href="/bills/new" class="btn">＋ สร้างบิลใหม่</a>
                     </div>
                 </div>
 
@@ -136,7 +136,7 @@
                             <b style="font-size:18px">${baht(b.total)}</b>
                         </div>
 
-                        <a class="btn soft block" href="bill-detail.html?id=${b.id}">ดูรายละเอียด →</a>
+                        <a class="btn soft block" href="/bills/detail?id=${b.id}">ดูรายละเอียด →</a>
                     </div>
                 `).join('') + '</div>'
                 : all.length
@@ -145,7 +145,7 @@
                         '🧾',
                         'ยังไม่มีบิล',
                         'สร้างบิลแรกเพื่อเริ่มติดตาม',
-                        '<a class="btn" href="create-bill.html">＋ สร้างบิลใหม่</a>'
+                        '<a class="btn" href="/bills/new">＋ สร้างบิลใหม่</a>'
                     );
 
             $$('.chip').forEach(c => c.onclick = () => {
@@ -203,7 +203,7 @@
             }
 
             joinDialog.close();
-            location = 'bill-detail.html?id=' + b.id;
+            location = '/bills/detail?id=' + b.id;
         };
 
         draw();

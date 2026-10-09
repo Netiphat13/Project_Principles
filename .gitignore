@@ -41,3 +41,4 @@ code/src/main/resources/application.properties
 
 # Ignore build output
 code/target/
+.env

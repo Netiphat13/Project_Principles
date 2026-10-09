@@ -12,20 +12,20 @@
 <body>
     <div class="shell">
         <aside class="side">
-            <a href="index.html" class="logo">
+            <a href="/home" class="logo">
                 <i>ıl</i>
                 <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
             </a>
-            <a class="nav active" href="index.html">🏠<span>แดชบอร์ด</span></a>
-            <a class="nav" href="create-bill.html">➕<span>สร้างบิล</span></a>
-            <a class="nav" href="bills.html">🧾<span>บิลของฉัน</span></a>
-            <a class="nav" href="stats.html">📊<span>สถิติ</span></a>
-            <a class="nav" href="profile.html">👤<span>โปรไฟล์</span></a>
+            <a class="nav active" href="/home">🏠<span>แดชบอร์ด</span></a>
+            <a class="nav" href="/bills/new">➕<span>สร้างบิล</span></a>
+            <a class="nav" href="/bills">🧾<span>บิลของฉัน</span></a>
+            <a class="nav" href="/stats">📊<span>สถิติ</span></a>
+            <a class="nav" href="/profile">👤<span>โปรไฟล์</span></a>
 
             <div class="promo">
                 ✨<b>หารแฟร์ขึ้นอีกขั้น</b>
                 ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br>
-                <a href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
+                <a href="/bills/new" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
             </div>
 
             <div class="me">
@@ -43,7 +43,7 @@
                 <div class="row">
                     <input class="search" placeholder="ค้นหา..." aria-label="ค้นหา">
                     <button class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button>
-                    <a href="profile.html" class="av" data-pinit>P</a>
+                    <a href="/profile" class="av" data-pinit>P</a>
                 </div>
             </header>
 
@@ -54,7 +54,7 @@
                         <h1>สวัสดี, <span data-pshort></span> 👋</h1>
                         <p class="muted">พร้อมหารบิลมื้อนี้แบบแฟร์ ๆ หรือยัง?</p>
                     </div>
-                    <a href="create-bill.html" class="btn">＋ สร้างบิลใหม่</a>
+                    <a href="/bills/new" class="btn">＋ สร้างบิลใหม่</a>
                 </div>
 
                 <div class="grid g4" id="st"></div>
@@ -78,7 +78,7 @@
                         <h2>บิลล่าสุด</h2>
                         <p class="muted">ติดตามและจัดการบิลของคุณ</p>
                     </div>
-                    <a href="bills.html" style="color:var(--g-d);font-weight:600">ดูทั้งหมด →</a>
+                    <a href="/bills" style="color:var(--g-d);font-weight:600">ดูทั้งหมด →</a>
                 </div>
 
                 <div class="card" id="recent"></div>
@@ -111,7 +111,7 @@
 
         $('#recent').innerHTML = bills.length
             ? '<div class="list">' + bills.slice(-3).reverse().map(b => `
-                <a href="bill-detail.html?id=${b.id}">
+                <a href="/bills/detail?id=${b.id}">
                     <div class="ico" style="background:#fff1e0">🍽️</div>
                     <div style="flex:1">
                         <b>${esc(b.shop)}</b>
@@ -121,7 +121,7 @@
                     <span class="pill ${b.status}">${ST[b.status]}</span>
                 </a>
             `).join('') + '</div>'
-            : empty('🧾', 'ยังไม่มีบิล', 'เริ่มสร้างบิลแรกของคุณได้เลย', '<a class="btn" href="create-bill.html">＋ สร้างบิล</a>');
+            : empty('🧾', 'ยังไม่มีบิล', 'เริ่มสร้างบิลแรกของคุณได้เลย', '<a class="btn" href="/bills/new">＋ สร้างบิล</a>');
     </script>
 </body>
 

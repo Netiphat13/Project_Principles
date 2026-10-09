@@ -1,45 +1,20 @@
 package com.example.splitbill.service;
 
-import java.security.SecureRandom;
+import com.example.splitbill.dto.request.GroupRequest;
+import com.example.splitbill.dto.response.GroupResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import org.springframework.stereotype.Service;
+public interface GroupService {
+    GroupResponse create(GroupRequest request, Long currentUserId);
 
-import com.example.splitbill.model.Group;
-import com.example.splitbill.repository.GroupRepository;
+    // ดูได้เฉพาะเจ้าของกลุ่มหรือสมาชิกในกลุ่ม
+    GroupResponse getById(Long id, Long currentUserId);
 
-@Service
-public class GroupService {
+    Page<GroupResponse> findByCreator(Long userId, Pageable pageable);
 
-    private final GroupRepository groupRepository;
-    private final SecureRandom random = new SecureRandom();
+    // แก้ไข/ลบได้เฉพาะเจ้าของกลุ่ม
+    GroupResponse update(Long id, GroupRequest request, Long currentUserId);
 
-    private static final String CHARACTERS =
-            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-    public GroupService(GroupRepository groupRepository) {
-        this.groupRepository = groupRepository;
-    }
-
-    public String generateUniqueInviteCode() {
-        String code;
-
-        do {
-            StringBuilder builder = new StringBuilder();
-
-            for (int i = 0; i < 8; i++) {
-                int index = random.nextInt(CHARACTERS.length());
-                builder.append(CHARACTERS.charAt(index));
-            }
-
-            code = builder.toString();
-
-        } while (groupRepository.existsByInviteCode(code));
-
-        return code;
-    }
-
-    public Group saveGroupWithInviteCode(Group group) {
-        group.setInviteCode(generateUniqueInviteCode());
-        return groupRepository.save(group);
-    }
+    void delete(Long id, Long currentUserId);
 }

@@ -4,8 +4,11 @@ package com.example.splitbill.repository;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.example.splitbill.model.Bill;
 
@@ -31,4 +34,13 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
             LocalDate startDate,
             LocalDate endDate
     );
+
+    // ดึงบิลของ User แบบแบ่งหน้า (ใช้ใน BillServiceImpl)
+    Page<Bill> findByCreatedById(Long userId, Pageable pageable);
+
+    // สถิติของ User (ใช้ในหน้า /stats) — คำนวณใน DB ไม่ต้องโหลดบิลทั้งหมดมา
+    long countByCreatedById(Long userId);
+
+    @Query("SELECT COALESCE(SUM(b.totalAmount), 0) FROM Bill b WHERE b.createdBy.id = :userId")
+    java.math.BigDecimal sumTotalAmountByCreatedById(@Param("userId") Long userId);
 }

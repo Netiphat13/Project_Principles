@@ -13,5 +13,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // ค้นหาผู้ใช้ด้วยชื่อผู้ใช้
     Optional<User> findByUsername(String username);
-}
 
+    // เช็กว่าอีเมลถูกใช้แล้วหรือยัง (ใช้ใน UserServiceImpl)
+    boolean existsByEmail(String email);
+}
