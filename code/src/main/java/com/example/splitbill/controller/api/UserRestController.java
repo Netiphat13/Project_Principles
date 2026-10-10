@@ -50,8 +50,8 @@ public class UserRestController {
 
     // หาเพื่อนจากอีเมลแบบตรงตัว เพื่อเชิญเข้าบิล
     @GetMapping("/lookup")
-    public UserResponse lookup(@RequestParam String email) {
-        return service.findByEmail(email);
+    public UserResponse lookup(@RequestParam String email, @SessionAttribute(WebConfig.USER_ID) Long userId) {
+        return service.findByEmail(email, userId);
     }
 
     @GetMapping("/{id}")
