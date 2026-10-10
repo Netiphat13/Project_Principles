@@ -1,9 +1,11 @@
 package com.example.splitbill.service.impl;
 
 import com.example.splitbill.dto.request.BillRequest;
+import com.example.splitbill.dto.request.PaymentShareRequest;
 import com.example.splitbill.dto.response.BillMemberResponse;
 import com.example.splitbill.dto.response.BillResponse;
 import com.example.splitbill.dto.response.BillSummary;
+import com.example.splitbill.dto.response.PaymentResponse;
 import com.example.splitbill.exception.ConflictException;
 import com.example.splitbill.exception.ForbiddenException;
 import com.example.splitbill.exception.ResourceNotFoundException;
@@ -11,12 +13,14 @@ import com.example.splitbill.mapper.BillMapper;
 import com.example.splitbill.model.Bill;
 import com.example.splitbill.model.BillItem;
 import com.example.splitbill.model.BillMember;
+import com.example.splitbill.model.BillPayment;
 import com.example.splitbill.model.BillStatus;
 import com.example.splitbill.model.MemberRole;
 import com.example.splitbill.model.SplitConfig;
 import com.example.splitbill.model.User;
 import com.example.splitbill.repository.BillItemRepository;
 import com.example.splitbill.repository.BillMemberRepository;
+import com.example.splitbill.repository.BillPaymentRepository;
 import com.example.splitbill.repository.BillRepository;
 import com.example.splitbill.repository.SplitConfigRepository;
 import com.example.splitbill.repository.UserRepository;
@@ -43,14 +47,22 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @Transactional
 public class BillServiceImpl implements BillService {
+    private static final Set<String> PAYMENT_STATUSES = Set.of(BillStatus.PENDING, BillStatus.PAID, BillStatus.OVERDUE);
     // ตัวนับการกรอกรหัสบิลผิด (AttemptLimiter)
     private static final String JOIN_ACTION = "bill-join";
     private static final int MAX_JOIN_FAILURES = 10;
@@ -68,6 +80,7 @@ public class BillServiceImpl implements BillService {
     private final SplitConfigRepository splitConfigRepository;
     private final UserRepository userRepository;
     private final BillMemberRepository billMemberRepository;
+    private final BillPaymentRepository billPaymentRepository;
     private final BillMapper mapper;
     private final AttemptLimiter attemptLimiter;
     private final JsonMapper jsonMapper; // Spring Boot 4 ใช้ Jackson 3 (package tools.jackson)
@@ -78,13 +91,15 @@ public class BillServiceImpl implements BillService {
 
     public BillServiceImpl(BillRepository billRepository, BillItemRepository billItemRepository,
                            SplitConfigRepository splitConfigRepository, UserRepository userRepository,
-                           BillMemberRepository billMemberRepository, BillMapper mapper,
+                           BillMemberRepository billMemberRepository,
+                           BillPaymentRepository billPaymentRepository, BillMapper mapper,
                            AttemptLimiter attemptLimiter, JsonMapper jsonMapper) {
         this.billRepository = billRepository;
         this.billItemRepository = billItemRepository;
         this.splitConfigRepository = splitConfigRepository;
         this.userRepository = userRepository;
         this.billMemberRepository = billMemberRepository;
+        this.billPaymentRepository = billPaymentRepository;
         this.mapper = mapper;
         this.attemptLimiter = attemptLimiter;
         this.jsonMapper = jsonMapper;
@@ -102,6 +117,10 @@ public class BillServiceImpl implements BillService {
         addMember(saved, saved.getCreatedBy(), MemberRole.OWNER);
         persistItems(saved, request);
         persistSplitConfig(saved, request);
+        if (request.payments() != null && !request.payments().isEmpty()) {
+            applyRoster(saved, request.payments());
+            recomputeBillStatus(saved);
+        }
         return mapper.toResponse(saved);
     }
 
@@ -130,6 +149,10 @@ public class BillServiceImpl implements BillService {
         Bill saved = billRepository.save(bill);
         persistItems(saved, request);
         persistSplitConfig(saved, request);
+        if (request.payments() != null && !request.payments().isEmpty()) {
+            applyRoster(saved, request.payments());
+            recomputeBillStatus(saved);
+        }
         return mapper.toResponse(saved);
     }
 
@@ -141,6 +164,7 @@ public class BillServiceImpl implements BillService {
             throw new IllegalArgumentException("Invalid bill status: " + status);
         }
         bill.setStatus(normalized);
+        cascadePaymentStatus(bill, normalized);
         return mapper.toResponse(billRepository.save(bill));
     }
 
@@ -148,8 +172,11 @@ public class BillServiceImpl implements BillService {
     public void delete(Long id, Long currentUserId) {
         Bill bill = findOwned(id, currentUserId);
         String slip = bill.getSlipImage();
+        List<String> memberSlips = billPaymentRepository.findByBill_IdOrderByIdAsc(bill.getId()).stream()
+                .map(BillPayment::getSlipImage).filter(Objects::nonNull).toList();
         billRepository.deleteBillById(bill.getId());
         deleteSlipFileAfterCommit(slip);
+        memberSlips.forEach(this::deleteSlipFileAfterCommit);
     }
 
     @Override @Transactional(readOnly = true)
@@ -210,6 +237,21 @@ public class BillServiceImpl implements BillService {
     @Override
     public void saveSlip(Long billId, Long currentUserId, MultipartFile file) {
         Bill bill = findOwned(billId, currentUserId);
+        String name = storeUpload(file);
+        String old = bill.getSlipImage();
+        bill.setSlipImage(name);
+        billRepository.save(bill);
+        deleteSlipFileAfterCommit(old);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public SlipFile loadSlip(Long billId, Long currentUserId) {
+        Bill bill = findAccessible(billId, currentUserId);
+        return serveFile(bill.getSlipImage(), "บิลนี้ยังไม่มีสลิป");
+    }
+
+    // ตรวจชนิด/ขนาดไฟล์แล้วเก็บลงดิสก์ คืนชื่อไฟล์ที่เก็บ
+    private String storeUpload(MultipartFile file) {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("ไม่พบไฟล์ที่อัปโหลด");
         if (file.getSize() > MAX_SLIP_BYTES) throw new IllegalArgumentException("ไฟล์ใหญ่เกิน 8 MB");
         try {
@@ -222,25 +264,194 @@ public class BillServiceImpl implements BillService {
             try (InputStream in = file.getInputStream()) {
                 Files.copy(in, dir.resolve(name));
             }
-            String old = bill.getSlipImage();
-            bill.setSlipImage(name);
-            billRepository.save(bill);
-            deleteSlipFileAfterCommit(old);
+            return name;
         } catch (IOException e) {
             throw new IllegalStateException("บันทึกไฟล์สลิปไม่สำเร็จ", e);
         }
     }
 
-    @Override @Transactional(readOnly = true)
-    public SlipFile loadSlip(Long billId, Long currentUserId) {
-        Bill bill = findAccessible(billId, currentUserId);
-        String name = bill.getSlipImage();
-        if (name == null || name.isBlank()) throw new ResourceNotFoundException("บิลนี้ยังไม่มีสลิป");
+    private SlipFile serveFile(String name, String missingMessage) {
+        if (name == null || name.isBlank()) throw new ResourceNotFoundException(missingMessage);
         Path dir = slipDir();
         Path file = dir.resolve(name).normalize();
         if (!file.startsWith(dir) || !Files.isRegularFile(file)) throw new ResourceNotFoundException("ไม่พบไฟล์สลิป");
         String ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
         return new SlipFile(new FileSystemResource(file), SLIP_TYPES.getOrDefault(ext, "application/octet-stream"));
+    }
+
+    // ---------- สถานะการจ่ายเงินและสลิปรายสมาชิก ----------
+
+    @Override @Transactional(readOnly = true)
+    public List<PaymentResponse> payments(Long billId, Long currentUserId) {
+        Bill bill = findAccessible(billId, currentUserId);
+        return paymentResponses(bill);
+    }
+
+    @Override
+    public List<PaymentResponse> syncPayments(Long billId, Long currentUserId, List<PaymentShareRequest> roster) {
+        Bill bill = findOwned(billId, currentUserId);
+        // ไม่คำนวณสถานะรวมใหม่ที่นี่ เพื่อไม่ทับสถานะที่เจ้าของบิลเคยตั้งไว้กับบิลเก่า
+        applyRoster(bill, roster);
+        return paymentResponses(bill);
+    }
+
+    @Override
+    public PaymentResponse updatePaymentStatus(Long billId, Long paymentId, String status, Long currentUserId) {
+        Bill bill = findOwned(billId, currentUserId);
+        BillPayment payment = findPayment(billId, paymentId);
+        String normalized = status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+        if (!PAYMENT_STATUSES.contains(normalized)) {
+            throw new IllegalArgumentException("Invalid payment status: " + status);
+        }
+        if (isOwnerRow(bill, payment)) {
+            throw new IllegalArgumentException("เจ้าของบิลไม่ต้องชำระเงินผ่านระบบ");
+        }
+        applyPaymentStatus(payment, normalized);
+        billPaymentRepository.save(payment);
+        recomputeBillStatus(bill);
+        return toPaymentResponse(bill, payment);
+    }
+
+    @Override
+    public PaymentResponse savePaymentSlip(Long billId, Long paymentId, Long currentUserId, MultipartFile file) {
+        Bill bill = findAccessible(billId, currentUserId);
+        BillPayment payment = findPayment(billId, paymentId);
+        requireOwnPayment(bill, payment, currentUserId);
+        String name = storeUpload(file);
+        String old = payment.getSlipImage();
+        payment.setSlipImage(name);
+        payment.setSlipUploadedAt(LocalDateTime.now());
+        // ส่งสลิปใหม่แล้ว ต้องรอเจ้าของบิลตรวจอีกครั้ง
+        applyPaymentStatus(payment, "PENDING");
+        billPaymentRepository.save(payment);
+        recomputeBillStatus(bill);
+        deleteSlipFileAfterCommit(old);
+        return toPaymentResponse(bill, payment);
+    }
+
+    @Override
+    public PaymentResponse removePaymentSlip(Long billId, Long paymentId, Long currentUserId) {
+        Bill bill = findAccessible(billId, currentUserId);
+        BillPayment payment = findPayment(billId, paymentId);
+        requireOwnPayment(bill, payment, currentUserId);
+        String old = payment.getSlipImage();
+        payment.setSlipImage(null);
+        payment.setSlipUploadedAt(null);
+        applyPaymentStatus(payment, "PENDING");
+        billPaymentRepository.save(payment);
+        recomputeBillStatus(bill);
+        deleteSlipFileAfterCommit(old);
+        return toPaymentResponse(bill, payment);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public SlipFile loadPaymentSlip(Long billId, Long paymentId, Long currentUserId) {
+        Bill bill = findAccessible(billId, currentUserId);
+        BillPayment payment = findPayment(billId, paymentId);
+        if (!isOwner(bill, currentUserId) && !isSelfPayment(payment, currentUserId)) {
+            throw new ForbiddenException("ดูสลิปได้เฉพาะเจ้าของบิลและเจ้าของสลิป");
+        }
+        return serveFile(payment.getSlipImage(), "ยังไม่มีสลิป");
+    }
+
+    // สร้าง/ปรับรายการชำระเงินให้ตรงกับรายชื่อ: คนเดิมเก็บสถานะและสลิปไว้ คนใหม่เริ่มที่รอจ่าย คนที่หายไปลบออก
+    private void applyRoster(Bill bill, List<PaymentShareRequest> roster) {
+        if (roster == null) return;
+        String ownerName = bill.getCreatedBy().getUsername();
+        Map<String, BillPayment> existing = new LinkedHashMap<>();
+        for (BillPayment p : billPaymentRepository.findByBill_IdOrderByIdAsc(bill.getId())) {
+            existing.put(p.getMemberName(), p);
+        }
+        Set<String> keep = new HashSet<>();
+        for (PaymentShareRequest r : roster) {
+            String name = r.name() == null ? "" : r.name().trim();
+            if (name.isEmpty() || !keep.add(name)) continue;
+            BillPayment payment = existing.get(name);
+            boolean created = payment == null;
+            if (created) {
+                payment = new BillPayment();
+                payment.setBill(bill);
+                payment.setMemberName(name);
+                applyPaymentStatus(payment, Boolean.TRUE.equals(r.paid()) ? "PAID" : "PENDING");
+            }
+            payment.setAmount(r.amount() == null ? BigDecimal.ZERO : r.amount().setScale(2, RoundingMode.HALF_UP));
+            // เจ้าของบิลคือคนจ่ายเงินก่อน จึงถือว่าจ่ายแล้วเสมอ
+            if (name.equals(ownerName)) applyPaymentStatus(payment, "PAID");
+            billPaymentRepository.save(payment);
+        }
+        for (BillPayment gone : existing.values()) {
+            if (keep.contains(gone.getMemberName())) continue;
+            billPaymentRepository.delete(gone);
+            deleteSlipFileAfterCommit(gone.getSlipImage());
+        }
+        billPaymentRepository.flush();
+    }
+
+    // สถานะรวมของบิลมาจากสมาชิก: จ่ายครบ = PAID, มีคนเกินกำหนด = OVERDUE, นอกนั้น = PENDING
+    // บิลที่เจ้าของยกเลิก/เป็นฉบับร่างไม่ถูกเปลี่ยน
+    private void recomputeBillStatus(Bill bill) {
+        String current = bill.getStatus();
+        if ("CANCELLED".equals(current) || "DRAFT".equals(current)) return;
+        List<BillPayment> list = billPaymentRepository.findByBill_IdOrderByIdAsc(bill.getId());
+        if (list.isEmpty()) return;
+        String next;
+        if (list.stream().allMatch(p -> "PAID".equals(p.getStatus()))) next = "PAID";
+        else if (list.stream().anyMatch(p -> "OVERDUE".equals(p.getStatus()))) next = "OVERDUE";
+        else next = "PENDING";
+        if (!next.equals(current)) {
+            bill.setStatus(next);
+            billRepository.save(bill);
+        }
+    }
+
+    // เจ้าของบิลเปลี่ยนสถานะรวม -> ปรับสถานะสมาชิกทุกคน (เจ้าของบิลยังคงเป็นจ่ายแล้ว)
+    private void cascadePaymentStatus(Bill bill, String status) {
+        if (!PAYMENT_STATUSES.contains(status)) return;
+        for (BillPayment p : billPaymentRepository.findByBill_IdOrderByIdAsc(bill.getId())) {
+            applyPaymentStatus(p, isOwnerRow(bill, p) ? "PAID" : status);
+            billPaymentRepository.save(p);
+        }
+    }
+
+    private static void applyPaymentStatus(BillPayment payment, String status) {
+        payment.setStatus(status);
+        if ("PAID".equals(status)) {
+            if (payment.getPaidAt() == null) payment.setPaidAt(LocalDateTime.now());
+        } else {
+            payment.setPaidAt(null);
+        }
+    }
+
+    private List<PaymentResponse> paymentResponses(Bill bill) {
+        List<BillPayment> list = new ArrayList<>(billPaymentRepository.findByBill_IdOrderByIdAsc(bill.getId()));
+        // เจ้าของบิลขึ้นก่อน ที่เหลือเรียงตามลำดับที่เพิ่ม
+        list.sort(Comparator.comparing((BillPayment p) -> !isOwnerRow(bill, p)).thenComparing(BillPayment::getId));
+        return list.stream().map(p -> toPaymentResponse(bill, p)).toList();
+    }
+
+    private PaymentResponse toPaymentResponse(Bill bill, BillPayment p) {
+        return new PaymentResponse(p.getId(), p.getMemberName(), p.getAmount(), p.getStatus(),
+                isOwnerRow(bill, p), p.getSlipImage() != null && !p.getSlipImage().isBlank(),
+                p.getSlipUploadedAt(), p.getPaidAt());
+    }
+
+    private BillPayment findPayment(Long billId, Long paymentId) {
+        return billPaymentRepository.findByIdAndBill_Id(paymentId, billId)
+                .orElseThrow(() -> new ResourceNotFoundException("ไม่พบรายการชำระเงิน"));
+    }
+
+    private static boolean isOwnerRow(Bill bill, BillPayment payment) {
+        return payment.getMemberName().equals(bill.getCreatedBy().getUsername());
+    }
+
+    private boolean isSelfPayment(BillPayment payment, Long userId) {
+        return payment.getMemberName().equals(findUser(userId).getUsername());
+    }
+
+    // ส่ง/ลบสลิปได้เฉพาะของตัวเอง และเจ้าของบิลไม่ต้องส่ง
+    private void requireOwnPayment(Bill bill, BillPayment payment, Long userId) {
+        if (isOwnerRow(bill, payment)) throw new IllegalArgumentException("เจ้าของบิลไม่ต้องส่งสลิปผ่านระบบ");
+        if (!isSelfPayment(payment, userId)) throw new ForbiddenException("ส่งหรือลบสลิปได้เฉพาะของตัวเอง");
     }
 
     private static String detectExtension(MultipartFile file) throws IOException {

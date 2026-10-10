@@ -68,7 +68,7 @@
         const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
         const id = qid();
 
-        let me, b, cfg, members = [], pending = [], found = null, lookupMsg = '', lookupTimer, lookupSeq = 0;
+        let me, b, cfg, members = [], pending = [], payments = [], found = null, lookupMsg = '', lookupTimer, lookupSeq = 0;
 
         const isOwner = () => b && me && b.createdById === me.id;
         const joinLink = () => location.origin + '/join?code=' + encodeURIComponent(b.joinCode || '');
@@ -150,22 +150,116 @@
             }
         }
 
+        // ---------- สถานะการจ่ายเงินและสลิปรายสมาชิก ----------
+        const PAY_OPTIONS = ['PENDING', 'PAID', 'OVERDUE'];
+        const payKey = s => ({ PAID: 'paid', OVERDUE: 'overdue' }[String(s || '').toUpperCase()] || 'pending');
+        const payLabel = s => ST[String(s || 'PENDING').toUpperCase()] || 'รอจ่าย';
+        const payOptions = cur => PAY_OPTIONS
+            .map(k => `<option value="${k}"${cur === k ? ' selected' : ''}>${ST[k]}</option>`).join('');
+        const when = ts => ts
+            ? new Date(ts).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
+            : '-';
+        const payUrl = p => '/api/v1/bills/' + id + '/payments/' + p.id + '/slip';
+        const slipUrl = p => payUrl(p) + '?v=' + encodeURIComponent(p.slipUploadedAt || '');
+        const myPayment = () => payments.find(p => !p.owner && p.memberName === me.username);
+
+        // รูปสลิป (ถ้าเปิดเป็นรูปไม่ได้ เช่น PDF จะเปลี่ยนเป็นปุ่มเปิดไฟล์)
+        function slipPreview(p) {
+            const url = slipUrl(p);
+            return `<img class="payment-slip-preview" data-slip-url="${url}" src="${url}" alt="สลิปของ ${esc(p.memberName)}">
+                <div class="muted slip-meta">ส่งเมื่อ ${when(p.slipUploadedAt)} ·
+                    <a href="${url}" target="_blank" rel="noopener">เปิดไฟล์เต็ม ↗</a></div>`;
+        }
+
+        function memberStatusCard(p) {
+            const mineRow = p.memberName === me.username;
+            const canSee = p.hasSlip && (isOwner() || mineRow);
+            let slipBody;
+            if (canSee) slipBody = slipPreview(p);
+            else if (p.hasSlip) slipBody = '<p class="muted" style="margin-top:8px">ส่งสลิปแล้ว (เห็นได้เฉพาะเจ้าของบิลและเจ้าของสลิป)</p>';
+            else slipBody = '<p class="muted" style="margin-top:8px">ยังไม่มีสลิปจากสมาชิกคนนี้</p>';
+
+            return `<div class="payment-member">
+                <div class="row sp payment-member-head">
+                    <div class="row" style="gap:10px">
+                        <div class="av" style="width:38px;height:38px">${esc((p.memberName[0] || '?').toUpperCase())}</div>
+                        <div>
+                            <b>${esc(p.memberName)}</b>${mineRow ? ' <span class="muted">(คุณ)</span>' : ''}
+                            ${p.owner ? '<span class="pill paid" style="margin-left:7px">เจ้าของบิล</span>' : ''}
+                            <div class="muted">ต้องจ่าย ${baht(p.amount)}</div>
+                        </div>
+                    </div>
+                    ${isOwner() && !p.owner && p.id
+                        ? `<select class="in payment-status" data-pid="${p.id}" data-name="${esc(p.memberName)}"
+                                aria-label="สถานะการจ่ายของ ${esc(p.memberName)}">${payOptions(p.status)}</select>`
+                        : `<span class="pill ${payKey(p.status)}">${payLabel(p.status)}</span>`}
+                </div>
+
+                ${p.owner
+                    ? '<div class="owner-paid-note">เจ้าของบิลไม่ต้องส่งสลิปผ่านระบบ</div>'
+                    : `<div class="slip-box">
+                        <div class="row sp">
+                            <b>สลิปการชำระเงิน</b>
+                            ${p.hasSlip ? '<span class="pill paid">ส่งแล้ว</span>' : '<span class="pill pending">ยังไม่ส่ง</span>'}
+                        </div>
+                        ${slipBody}
+                        ${isOwner() && p.hasSlip
+                            ? '<div class="muted" style="margin-top:8px">ตรวจสลิปแล้วจึงเปลี่ยนสถานะเป็น “จ่ายแล้ว”</div>'
+                            : ''}
+                    </div>`}
+            </div>`;
+        }
+
+        // การ์ดให้สมาชิกส่งสลิปของตัวเอง
+        function selfPaymentCard() {
+            const mine = myPayment();
+            if (isOwner()) return '';
+            if (!mine) {
+                return `<div class="card" style="margin-top:16px">
+                    <h2>ส่งสลิปการชำระเงิน</h2>
+                    <p class="muted" style="margin-top:8px">ชื่อของคุณไม่อยู่ในรายการแบ่งของบิลนี้ ติดต่อเจ้าของบิลเพื่อตรวจสอบยอด</p>
+                </div>`;
+            }
+            const ready = !!mine.id;
+            return `<div class="card payment-self-card" style="margin-top:16px">
+                <div class="row sp">
+                    <div>
+                        <span class="tag">MY PAYMENT</span>
+                        <h2 style="margin:7px 0 2px">ส่งสลิปการชำระเงิน</h2>
+                        <p class="muted">หลังโอนเงินแล้ว อัปโหลดรูปหรือ PDF สลิปของคุณ เจ้าของบิลจะเป็นคนตรวจสอบ</p>
+                    </div>
+                    <span class="pill ${payKey(mine.status)}">${payLabel(mine.status)}</span>
+                </div>
+                ${ready
+                    ? `<div class="payment-upload">
+                        <input id="slipFileMine" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" hidden>
+                        <button type="button" class="btn" id="mySlipBtn">📎 ${mine.hasSlip ? 'เปลี่ยนสลิป' : 'เพิ่มสลิป'}</button>
+                        ${mine.hasSlip ? '<button type="button" class="btn ghost" id="mySlipDel">ลบสลิป</button>' : ''}
+                        <span class="muted">JPG, PNG, WEBP, GIF, PDF · ไม่เกิน 8 MB</span>
+                    </div>
+                    <p class="err" id="mySlipErr"></p>
+                    ${mine.hasSlip ? `<div style="margin-top:12px">${slipPreview(mine)}</div>` : ''}`
+                    : '<p class="muted" style="margin-top:10px">เจ้าของบิลยังไม่ได้เปิดบิลนี้เพื่อสร้างรายการชำระเงิน กลับมาส่งสลิปได้ภายหลัง</p>'}
+            </div>`;
+        }
+
+        // สลิป/ใบเสร็จของบิลที่เจ้าของบิลแนบไว้
         function slipHtml() {
             if (!b.hasSlip) {
                 return `<p class="muted" style="margin-top:10px">${isOwner() ? 'ยังไม่ได้แนบสลิป/ใบเสร็จ' : 'เจ้าของบิลยังไม่ได้แนบสลิป/ใบเสร็จ'}</p>`;
             }
             const url = '/api/v1/bills/' + id + '/slip?v=' + Date.now();
             return `
-                <img class="receipt-preview receipt-detail" src="${url}" alt="สลิป/ใบเสร็จของบิล"
-                    onerror="this.outerHTML='<div class=&quot;slip-pdf&quot;><span>📄</span><div><b>ไฟล์สลิป/ใบเสร็จ</b><div class=&quot;muted&quot;>เปิดดูในแท็บใหม่</div></div><a class=&quot;btn ghost sm&quot; href=&quot;${url}&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;>เปิดดู</a></div>'">
+                <img class="receipt-preview receipt-detail" data-slip-url="${url}" src="${url}" alt="สลิป/ใบเสร็จของบิล">
                 <a class="muted" href="${url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px">เปิดไฟล์เต็ม ↗</a>`;
         }
 
         function render() {
             const { names, shares, items } = splitInfo();
             const total = Number(b.totalAmount || 0);
-            const myShare = shares[me.username];
-            const paid = cfg.paid || {};
+            const mine = myPayment();
+            const owner = isOwner();
+            const paidCount = payments.filter(p => String(p.status).toUpperCase() === 'PAID').length;
 
             $('#box').innerHTML = `
                 <div class="head">
@@ -208,10 +302,10 @@
 
                     <div class="card">
                         <h2>จัดการบิล</h2>
-                        ${isOwner()
-                            ? `<p class="muted" style="margin-top:8px">คุณเป็นเจ้าของบิล เปลี่ยนสถานะหรือลบบิลได้</p>
+                        ${owner
+                            ? `<p class="muted" style="margin-top:8px">คุณเป็นเจ้าของบิล สามารถตรวจสลิปและเปลี่ยนสถานะการชำระของสมาชิกได้</p>
                                <div class="field" style="margin-top:12px">
-                                   <label for="s">สถานะการชำระ</label>
+                                   <label for="s">สถานะรวมของบิล</label>
                                    <select class="in" id="s">
                                        ${['PENDING', 'PAID', 'OVERDUE', 'CANCELLED'].map(k =>
                                            `<option value="${k}"${String(b.status).toUpperCase() === k ? ' selected' : ''}>${ST[k]}</option>`).join('')}
@@ -219,15 +313,39 @@
                                </div>
                                <button class="btn danger block" id="del">ลบบิลนี้</button>`
                             : `<div class="kv" style="margin-top:8px">
-                                   <span class="muted">สถานะบิล</span>
-                                   <span class="pill ${statusKey(b.status)}">${statusLabel(b.status)}</span>
+                                   <span class="muted">สถานะของคุณ</span>
+                                   ${mine
+                                       ? `<span class="pill ${payKey(mine.status)}">${payLabel(mine.status)}</span>`
+                                       : '<span class="muted">-</span>'}
                                </div>
                                <div class="kv">
                                    <span class="muted">ยอดที่คุณต้องจ่าย</span>
-                                   <b>${myShare === undefined ? '-' : baht(myShare)}</b>
+                                   <b>${mine ? baht(mine.amount) : (shares[me.username] === undefined ? '-' : baht(shares[me.username]))}</b>
                                </div>
-                               ${myShare === undefined ? '<p class="muted" style="margin-top:8px">ชื่อของคุณไม่อยู่ในรายการแบ่งของบิลนี้ ติดต่อเจ้าของบิลเพื่อตรวจสอบยอด</p>' : ''}`
+                               <div class="kv">
+                                   <span class="muted">สถานะบิล</span>
+                                   <span class="pill ${statusKey(b.status)}">${statusLabel(b.status)}</span>
+                               </div>`
                         }
+                    </div>
+                </div>
+
+                ${selfPaymentCard()}
+
+                <div class="card" style="margin-top:16px">
+                    <div class="row sp">
+                        <div>
+                            <span class="tag">PAYMENT REVIEW</span>
+                            <h2 style="margin:7px 0 2px">ตรวจสอบการชำระเงินของสมาชิก</h2>
+                            <p class="muted">${owner
+                                ? 'ดูสลิปที่สมาชิกส่งมา และเปลี่ยนสถานะหลังตรวจสอบยอดเรียบร้อย'
+                                : 'สถานะการจ่ายเงินของสมาชิกในบิลนี้'}</p>
+                        </div>
+                        <span class="muted">${paidCount}/${payments.length} คนจ่ายแล้ว</span>
+                    </div>
+                    <p class="err" id="payErr"></p>
+                    <div class="payment-members">
+                        ${payments.map(memberStatusCard).join('')}
                     </div>
                 </div>
 
@@ -274,11 +392,11 @@
                             </div>
                         `).join('') + '</div>'
                         + '<h2 style="margin:18px 0 4px">ยอดที่แต่ละคนต้องจ่าย</h2>'
-                        + '<div class="list">' + names.map(n => `
+                        + '<div class="list">' + payments.map(p => `
                             <div>
-                                <b style="flex:1">${esc(n)}${n === me.username ? ' <span class="muted">(คุณ)</span>' : ''}</b>
-                                <b>${baht(shares[n])}</b>
-                                <span class="pill ${paid[n] ? 'paid' : 'pending'}">${paid[n] ? 'จ่ายแล้ว' : 'รอจ่าย'}</span>
+                                <b style="flex:1">${esc(p.memberName)}${p.memberName === me.username ? ' <span class="muted">(คุณ)</span>' : ''}</b>
+                                <b>${baht(p.amount)}</b>
+                                <span class="pill ${payKey(p.status)}">${payLabel(p.status)}</span>
                             </div>
                         `).join('') + '</div>'
                         + `<p class="muted" style="margin-top:10px">
@@ -290,36 +408,63 @@
 
                 <div class="card" style="margin-top:16px">
                     <div class="row sp">
-                        <h2>สลิป / ใบเสร็จ</h2>
-                        ${isOwner()
+                        <h2>ใบเสร็จจากผู้สร้างบิล</h2>
+                        ${owner
                             ? `<div class="row">
                                    <input id="slipFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" hidden>
                                    <button type="button" class="btn ghost sm" id="slipBtn">📎 ${b.hasSlip ? 'เปลี่ยนไฟล์' : 'แนบไฟล์'}</button>
                                </div>`
                             : ''}
                     </div>
-                    ${isOwner() ? '<p class="muted">JPG, PNG, WEBP, GIF หรือ PDF · ไม่เกิน 8 MB</p>' : ''}
+                    ${owner ? '<p class="muted">JPG, PNG, WEBP, GIF หรือ PDF · ไม่เกิน 8 MB</p>' : ''}
                     <p class="err" id="slipErr"></p>
                     ${slipHtml()}
                 </div>
             `;
 
+            // รูปที่เปิดเป็นรูปไม่ได้ (เช่น PDF) -> เปลี่ยนเป็นปุ่มเปิดไฟล์
+            $$('img[data-slip-url]').forEach(img => {
+                img.addEventListener('error', () => {
+                    const u = img.dataset.slipUrl;
+                    img.outerHTML = `<div class="slip-pdf"><span>📄</span>
+                        <div><b>ไฟล์สลิป</b><div class="muted">เปิดดูในแท็บใหม่</div></div>
+                        <a class="btn ghost sm" href="${u}" target="_blank" rel="noopener">เปิดดู</a></div>`;
+                }, { once: true });
+            });
+
             $('#copyCode').onclick = e => copyText(b.joinCode || '', e.target, 'คัดลอกรหัส');
             $('#copyLink').onclick = e => copyText(joinLink(), e.target, 'คัดลอกลิงก์');
             $('#invq').oninput = e => lookup(e.target.value);
 
+            // เจ้าของบิล: เปลี่ยนสถานะรวม (สมาชิกทุกคนเปลี่ยนตาม)
             const s = $('#s');
             if (s) {
                 s.onchange = async e => {
                     try {
-                        b = await api.patch('/api/v1/bills/' + id + '/status', { status: e.target.value });
+                        await api.patch('/api/v1/bills/' + id + '/status', { status: e.target.value });
                         notify('อัปเดตสถานะบิล "' + b.restaurantName + '" แล้ว');
-                        render();
+                        await reload();
                     } catch (err) {
                         alert('อัปเดตสถานะไม่สำเร็จ: ' + err.message);
+                        await reload();
                     }
                 };
             }
+
+            // เจ้าของบิล: เปลี่ยนสถานะการจ่ายของสมาชิกทีละคน
+            $$('.payment-status').forEach(sel => {
+                sel.onchange = async e => {
+                    const t = e.target;
+                    t.disabled = true;
+                    try {
+                        await api.patch('/api/v1/bills/' + id + '/payments/' + t.dataset.pid + '/status', { status: t.value });
+                        notify('อัปเดตสถานะการชำระของ ' + t.dataset.name + ' แล้ว');
+                    } catch (err) {
+                        $('#payErr').textContent = 'อัปเดตสถานะไม่สำเร็จ: ' + err.message;
+                    }
+                    await reload();
+                };
+            });
 
             const del = $('#del');
             if (del) {
@@ -335,6 +480,48 @@
                 };
             }
 
+            // สมาชิก: ส่ง/เปลี่ยน/ลบสลิปของตัวเอง
+            const mineBtn = $('#mySlipBtn');
+            const mineFile = $('#slipFileMine');
+            if (mineBtn && mineFile) {
+                mineBtn.onclick = () => mineFile.click();
+                mineFile.onchange = async e => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!f) return;
+                    if (f.size > 8 * 1024 * 1024) {
+                        $('#mySlipErr').textContent = 'ไฟล์ใหญ่เกิน 8 MB';
+                        return;
+                    }
+                    mineBtn.disabled = true;
+                    try {
+                        await api.upload('/api/v1/bills/' + id + '/payments/' + myPayment().id + '/slip', f);
+                        notify('ส่งสลิปการชำระเงินสำหรับบิล "' + b.restaurantName + '" แล้ว');
+                        await reload();
+                    } catch (err) {
+                        $('#mySlipErr').textContent = 'ส่งสลิปไม่สำเร็จ: ' + err.message;
+                        mineBtn.disabled = false;
+                    }
+                };
+            }
+
+            const mineDel = $('#mySlipDel');
+            if (mineDel) {
+                mineDel.onclick = async () => {
+                    if (!confirm('ลบสลิปของคุณใช่หรือไม่?')) return;
+                    mineDel.disabled = true;
+                    try {
+                        await api.delete('/api/v1/bills/' + id + '/payments/' + myPayment().id + '/slip');
+                        notify('ลบสลิปการชำระเงินแล้ว');
+                        await reload();
+                    } catch (err) {
+                        $('#mySlipErr').textContent = 'ลบสลิปไม่สำเร็จ: ' + err.message;
+                        mineDel.disabled = false;
+                    }
+                };
+            }
+
+            // เจ้าของบิล: แนบ/เปลี่ยนใบเสร็จของบิล
             const slipBtn = $('#slipBtn');
             const slipFile = $('#slipFile');
             if (slipBtn && slipFile) {
@@ -360,6 +547,38 @@
             }
         }
 
+        // รายการชำระเงินของบิล — บิลเก่าที่ยังไม่มี เจ้าของบิลเปิดครั้งแรกจะสร้างให้จากข้อมูลการแบ่งเดิม
+        async function loadPayments() {
+            let list = await api.get('/api/v1/bills/' + id + '/payments');
+            if (list.length) return list;
+
+            const { names, shares } = splitInfo();
+            const paidMap = cfg.paid || {};
+            const allPaid = String(b.status).toUpperCase() === 'PAID';
+            const roster = names.map(n => ({
+                name: n,
+                amount: Math.round(Number(shares[n] || 0) * 100) / 100,
+                paid: allPaid || !!paidMap[n]
+            }));
+
+            if (isOwner()) {
+                try {
+                    list = await api.put('/api/v1/bills/' + id + '/payments', { payments: roster });
+                } catch {}
+            }
+            if (list.length) return list;
+
+            // ยังสร้างไม่ได้ (สมาชิกเปิดก่อนเจ้าของบิล) -> แสดงจากข้อมูลเดิมแบบอ่านอย่างเดียว
+            return roster.map(r => ({
+                id: null,
+                memberName: r.name,
+                amount: r.amount,
+                status: r.paid ? 'PAID' : 'PENDING',
+                owner: r.name === b.createdByName,
+                hasSlip: false
+            }));
+        }
+
         async function reload() {
             b = await api.get('/api/v1/bills/' + id);
             cfg = {};
@@ -376,6 +595,8 @@
             if (!members.some(m => m.userId === b.createdById)) {
                 members.unshift({ userId: b.createdById, username: b.createdByName, email: '', role: 'OWNER' });
             }
+            payments = await loadPayments();
+            // เปลี่ยนสถานะสมาชิกแล้วสถานะรวมของบิลอาจเปลี่ยนตาม จึงโหลดบิลใหม่ทุกครั้ง
             render();
         }
 

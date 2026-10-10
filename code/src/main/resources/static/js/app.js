@@ -332,3 +332,6 @@ if (!isAuthPage) {
     SM.ready.then(() => openJoin(c)).catch(() => {})
   }
 }
+
+// helper สำหรับหน้า groups (ยังเก็บใน localStorage ไม่ได้ผูก DB)
+const newId = list => list.reduce((m, x) => Math.max(m, x.id), 0) + 1

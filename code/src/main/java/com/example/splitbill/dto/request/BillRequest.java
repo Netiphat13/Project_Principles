@@ -23,5 +23,7 @@ public record BillRequest(
         @Size(max = 100_000) String splitConfigData,
         @Valid List<BillItemRequest> items,
         // รหัสเข้าร่วมที่หน้าเว็บแสดงไว้ (ถ้าซ้ำหรือว่าง server จะสุ่มใหม่)
-        @Size(max = 12) String joinCode
+        @Size(max = 12) String joinCode,
+        // ยอดที่สมาชิกแต่ละคนต้องจ่าย (ใช้สร้างสถานะการจ่าย/สลิปรายคน) — ไม่ส่งมาก็ได้
+        @Valid @Size(max = 100) List<PaymentShareRequest> payments
 ) {}

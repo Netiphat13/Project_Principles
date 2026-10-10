@@ -2,8 +2,10 @@ package com.example.splitbill.controller.api;
 
 import com.example.splitbill.config.WebConfig;
 import com.example.splitbill.dto.request.BillRequest;
+import com.example.splitbill.dto.request.PaymentRosterRequest;
 import com.example.splitbill.dto.response.BillMemberResponse;
 import com.example.splitbill.dto.response.BillResponse;
+import com.example.splitbill.dto.response.PaymentResponse;
 import com.example.splitbill.service.BillService;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
@@ -95,6 +97,53 @@ public class BillRestController {
     @GetMapping("/{id}/slip")
     public ResponseEntity<Resource> slip(@PathVariable Long id, @SessionAttribute(WebConfig.USER_ID) Long userId) {
         BillService.SlipFile slip = service.loadSlip(id, userId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(slip.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .header("X-Content-Type-Options", "nosniff")
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePrivate())
+                .body(slip.resource());
+    }
+
+    // ---------- สถานะการจ่ายเงินและสลิปรายสมาชิก ----------
+
+    @GetMapping("/{id}/payments")
+    public List<PaymentResponse> payments(@PathVariable Long id, @SessionAttribute(WebConfig.USER_ID) Long userId) {
+        return service.payments(id, userId);
+    }
+
+    // เจ้าของบิลสร้าง/ปรับรายการชำระเงินจากรายชื่อและยอดที่ต้องจ่าย
+    @PutMapping("/{id}/payments")
+    public List<PaymentResponse> syncPayments(@PathVariable Long id, @Valid @RequestBody PaymentRosterRequest request,
+                                              @SessionAttribute(WebConfig.USER_ID) Long userId) {
+        return service.syncPayments(id, userId, request.payments());
+    }
+
+    // เจ้าของบิลตรวจสลิปแล้วเปลี่ยนสถานะ: PENDING / PAID / OVERDUE
+    @PatchMapping("/{id}/payments/{paymentId}/status")
+    public PaymentResponse paymentStatus(@PathVariable Long id, @PathVariable Long paymentId,
+                                         @RequestBody Map<String, String> body,
+                                         @SessionAttribute(WebConfig.USER_ID) Long userId) {
+        return service.updatePaymentStatus(id, paymentId, body.get("status"), userId);
+    }
+
+    @PostMapping(value = "/{id}/payments/{paymentId}/slip", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public PaymentResponse uploadPaymentSlip(@PathVariable Long id, @PathVariable Long paymentId,
+                                             @RequestParam("file") MultipartFile file,
+                                             @SessionAttribute(WebConfig.USER_ID) Long userId) {
+        return service.savePaymentSlip(id, paymentId, userId, file);
+    }
+
+    @DeleteMapping("/{id}/payments/{paymentId}/slip")
+    public PaymentResponse removePaymentSlip(@PathVariable Long id, @PathVariable Long paymentId,
+                                             @SessionAttribute(WebConfig.USER_ID) Long userId) {
+        return service.removePaymentSlip(id, paymentId, userId);
+    }
+
+    @GetMapping("/{id}/payments/{paymentId}/slip")
+    public ResponseEntity<Resource> paymentSlip(@PathVariable Long id, @PathVariable Long paymentId,
+                                                @SessionAttribute(WebConfig.USER_ID) Long userId) {
+        BillService.SlipFile slip = service.loadPaymentSlip(id, paymentId, userId);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(slip.contentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")

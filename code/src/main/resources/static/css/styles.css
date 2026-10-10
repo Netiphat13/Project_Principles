@@ -112,6 +112,8 @@ a {
 }
 
 .pill {
+    white-space: nowrap;
+    flex-shrink: 0;
     padding: 3px 10px;
     border-radius: 99px;
     font-size: 11px;

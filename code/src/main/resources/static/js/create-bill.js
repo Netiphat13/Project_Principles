@@ -1074,7 +1074,13 @@
         splitMethod: st.method,
         splitConfigData: JSON.stringify(config),
         items: st.items.map(x => ({ name: x.name, quantity: x.qty, unitPrice: round2(x.price) })),
-        joinCode: st.code || null
+        joinCode: st.code || null,
+        // ยอดที่แต่ละคนต้องจ่าย -> สร้างสถานะการจ่าย/สลิปรายคนในฐานข้อมูล
+        payments: st.sel.map(n => ({
+          name: n,
+          amount: round2(Number(c.share[n]) || 0),
+          paid: !!st.paid[n]
+        }))
       })
 
       // ส่งคำเชิญให้เพื่อนที่มีบัญชี
