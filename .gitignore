@@ -1,9 +1,11 @@
+/target/
 target/
 code/.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
+### STS
+
 .apt_generated
 .classpath
 .factorypath
@@ -12,13 +14,15 @@ code/.mvn/wrapper/maven-wrapper.jar
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
+### IntelliJ IDEA
+
 .idea
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
+### NetBeans
+
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -28,7 +32,8 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
+### VS Code
+
 .vscode/
 
 # Ignore Spring Boot configuration
@@ -36,3 +41,7 @@ code/src/main/resources/application.properties
 
 # Ignore build output
 code/target/
+.env
+
+# ไฟล์สลิปที่ผู้ใช้อัปโหลด
+code/uploads/

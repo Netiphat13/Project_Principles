@@ -6,7 +6,9 @@ import com.example.splitbill.exception.ForbiddenException;
 import com.example.splitbill.exception.ResourceNotFoundException;
 import com.example.splitbill.model.Bill;
 import com.example.splitbill.model.BillMember;
+import com.example.splitbill.model.BillStatus;
 import com.example.splitbill.model.Invitation;
+import com.example.splitbill.model.MemberRole;
 import com.example.splitbill.model.Notification;
 import com.example.splitbill.model.User;
 import com.example.splitbill.repository.BillMemberRepository;
@@ -83,14 +85,18 @@ public class InvitationServiceImpl implements InvitationService {
     @Override
     public void accept(Long invitationId, Long userId) {
         Invitation invitation = findPendingForInvitee(invitationId, userId);
-        invitation.setStatus(Invitation.ACCEPTED);
         Bill bill = invitation.getBill();
+        // เหมือน BillServiceImpl.join(): เข้าร่วมบิลที่ถูกยกเลิกแล้วไม่ได้
+        if (BillStatus.CANCELLED.equals(bill.getStatus())) {
+            throw new ConflictException("บิลนี้ถูกยกเลิกแล้ว");
+        }
+        invitation.setStatus(Invitation.ACCEPTED);
         // อาจเข้าร่วมด้วยรหัสไปก่อนแล้ว ไม่ต้องเพิ่มซ้ำ
         if (!isMember(bill, userId)) {
             BillMember member = new BillMember();
             member.setBill(bill);
             member.setUser(invitation.getInvitee());
-            member.setRole("MEMBER");
+            member.setRole(MemberRole.MEMBER);
             billMemberRepository.save(member);
         }
     }

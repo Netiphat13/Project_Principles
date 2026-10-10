@@ -13,8 +13,8 @@ public interface UserService {
     void delete(Long id, Long currentUserId);
     UserResponse authenticate(String email, String password);
 
-    // หาผู้ใช้จากอีเมลแบบตรงตัว (ใช้ตอนเชิญเพื่อนเข้าบิล)
-    UserResponse findByEmail(String email);
+    // หาผู้ใช้จากอีเมลแบบตรงตัว (ใช้ตอนเชิญเพื่อนเข้าบิล) — ค้นไม่เจอบ่อยเกินไปจะได้ 429
+    UserResponse findByEmail(String email, Long requesterId);
 
     // ข้อมูลผู้ใช้ที่ล็อกอิน + โปรไฟล์ + การตั้งค่า
     SessionResponse session(Long userId);

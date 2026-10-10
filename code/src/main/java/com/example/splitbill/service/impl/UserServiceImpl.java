@@ -15,6 +15,7 @@ import com.example.splitbill.model.UserSetting;
 import com.example.splitbill.repository.ProfileRepository;
 import com.example.splitbill.repository.UserRepository;
 import com.example.splitbill.repository.UserSettingRepository;
+import com.example.splitbill.service.AttemptLimiter;
 import com.example.splitbill.service.UserService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,14 +29,21 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final ProfileRepository profileRepository;
     private final UserSettingRepository settingRepository;
+    private final AttemptLimiter attemptLimiter;
+    // ตัวนับการค้นอีเมลที่ไม่พบ (กันไล่เดาว่าอีเมลไหนมีบัญชี)
+    // ช่องค้นหาในหน้าเว็บค้นระหว่างพิมพ์ จึงเผื่อจำนวนครั้งไว้มากกว่ารหัสบิล
+    private static final String LOOKUP_ACTION = "user-lookup";
+    private static final int MAX_LOOKUP_FAILURES = 40;
 
     public UserServiceImpl(UserRepository userRepository, UserMapper mapper, PasswordEncoder passwordEncoder,
-                           ProfileRepository profileRepository, UserSettingRepository settingRepository) {
+                           ProfileRepository profileRepository, UserSettingRepository settingRepository,
+                           AttemptLimiter attemptLimiter) {
         this.userRepository = userRepository;
         this.mapper = mapper;
         this.passwordEncoder = passwordEncoder;
         this.profileRepository = profileRepository;
         this.settingRepository = settingRepository;
+        this.attemptLimiter = attemptLimiter;
     }
 
     @Override
@@ -86,10 +94,14 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override @Transactional(readOnly = true)
-    public UserResponse findByEmail(String email) {
-        return userRepository.findByEmailIgnoreCase(normalizeEmail(email))
-                .map(mapper::toResponse)
-                .orElseThrow(() -> new ResourceNotFoundException("ไม่พบผู้ใช้ที่ใช้อีเมลนี้"));
+    public UserResponse findByEmail(String email, Long requesterId) {
+        attemptLimiter.check(LOOKUP_ACTION, requesterId, MAX_LOOKUP_FAILURES);
+        User user = userRepository.findByEmailIgnoreCase(normalizeEmail(email)).orElse(null);
+        if (user == null) {
+            attemptLimiter.recordFailure(LOOKUP_ACTION, requesterId);
+            throw new ResourceNotFoundException("ไม่พบผู้ใช้ที่ใช้อีเมลนี้");
+        }
+        return mapper.toResponse(user);
     }
 
     @Override @Transactional(readOnly = true)

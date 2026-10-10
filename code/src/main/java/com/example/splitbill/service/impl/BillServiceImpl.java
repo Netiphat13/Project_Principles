@@ -14,6 +14,8 @@ import com.example.splitbill.model.Bill;
 import com.example.splitbill.model.BillItem;
 import com.example.splitbill.model.BillMember;
 import com.example.splitbill.model.BillPayment;
+import com.example.splitbill.model.BillStatus;
+import com.example.splitbill.model.MemberRole;
 import com.example.splitbill.model.SplitConfig;
 import com.example.splitbill.model.User;
 import com.example.splitbill.repository.BillItemRepository;
@@ -22,6 +24,7 @@ import com.example.splitbill.repository.BillPaymentRepository;
 import com.example.splitbill.repository.BillRepository;
 import com.example.splitbill.repository.SplitConfigRepository;
 import com.example.splitbill.repository.UserRepository;
+import com.example.splitbill.service.AttemptLimiter;
 import com.example.splitbill.service.BillService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
@@ -32,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,8 +62,10 @@ import java.util.UUID;
 @Service
 @Transactional
 public class BillServiceImpl implements BillService {
-    private static final Set<String> STATUSES = Set.of("DRAFT", "PENDING", "PAID", "OVERDUE", "CANCELLED");
-    private static final Set<String> PAYMENT_STATUSES = Set.of("PENDING", "PAID", "OVERDUE");
+    private static final Set<String> PAYMENT_STATUSES = Set.of(BillStatus.PENDING, BillStatus.PAID, BillStatus.OVERDUE);
+    // ตัวนับการกรอกรหัสบิลผิด (AttemptLimiter)
+    private static final String JOIN_ACTION = "bill-join";
+    private static final int MAX_JOIN_FAILURES = 10;
     private static final String CODE_PREFIX = "SM-";
     private static final String CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CODE_LENGTH = 6;
@@ -75,6 +82,8 @@ public class BillServiceImpl implements BillService {
     private final BillMemberRepository billMemberRepository;
     private final BillPaymentRepository billPaymentRepository;
     private final BillMapper mapper;
+    private final AttemptLimiter attemptLimiter;
+    private final JsonMapper jsonMapper; // Spring Boot 4 ใช้ Jackson 3 (package tools.jackson)
     private final SecureRandom random = new SecureRandom();
 
     @Value("${app.upload-dir:uploads/slips}")
@@ -83,7 +92,8 @@ public class BillServiceImpl implements BillService {
     public BillServiceImpl(BillRepository billRepository, BillItemRepository billItemRepository,
                            SplitConfigRepository splitConfigRepository, UserRepository userRepository,
                            BillMemberRepository billMemberRepository,
-                           BillPaymentRepository billPaymentRepository, BillMapper mapper) {
+                           BillPaymentRepository billPaymentRepository, BillMapper mapper,
+                           AttemptLimiter attemptLimiter, JsonMapper jsonMapper) {
         this.billRepository = billRepository;
         this.billItemRepository = billItemRepository;
         this.splitConfigRepository = splitConfigRepository;
@@ -91,17 +101,20 @@ public class BillServiceImpl implements BillService {
         this.billMemberRepository = billMemberRepository;
         this.billPaymentRepository = billPaymentRepository;
         this.mapper = mapper;
+        this.attemptLimiter = attemptLimiter;
+        this.jsonMapper = jsonMapper;
     }
 
     @Override
     public BillResponse create(BillRequest request, Long currentUserId) {
+        requireValidJson(request.splitConfigData());
         Bill bill = new Bill();
         bill.setCreatedBy(findUser(currentUserId));
-        bill.setStatus("PENDING");
+        bill.setStatus(BillStatus.DEFAULT);
         bill.setJoinCode(resolveJoinCode(request.joinCode()));
         applyFields(bill, request);
         Bill saved = billRepository.save(bill);
-        addMember(saved, saved.getCreatedBy(), "OWNER");
+        addMember(saved, saved.getCreatedBy(), MemberRole.OWNER);
         persistItems(saved, request);
         persistSplitConfig(saved, request);
         if (request.payments() != null && !request.payments().isEmpty()) {
@@ -129,6 +142,7 @@ public class BillServiceImpl implements BillService {
     @Override
     public BillResponse update(Long id, BillRequest request, Long currentUserId) {
         Bill bill = findOwned(id, currentUserId);
+        requireValidJson(request.splitConfigData());
         applyFields(bill, request);
         billItemRepository.deleteAll(bill.getItems());
         bill.getItems().clear();
@@ -146,7 +160,7 @@ public class BillServiceImpl implements BillService {
     public BillResponse updateStatus(Long id, String status, Long currentUserId) {
         Bill bill = findOwned(id, currentUserId);
         String normalized = status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
-        if (!STATUSES.contains(normalized)) {
+        if (!BillStatus.ALL.contains(normalized)) {
             throw new IllegalArgumentException("Invalid bill status: " + status);
         }
         bill.setStatus(normalized);
@@ -193,13 +207,21 @@ public class BillServiceImpl implements BillService {
     public BillResponse join(String code, Long currentUserId) {
         String normalized = normalizeCode(code);
         if (normalized.isEmpty()) throw new IllegalArgumentException("กรุณากรอกรหัสบิล");
+        // กันสุ่มเดารหัส: กรอกผิดเกินกำหนดภายในช่วงเวลาหนึ่งจะได้ 429
+        attemptLimiter.check(JOIN_ACTION, currentUserId, MAX_JOIN_FAILURES);
         Bill bill = billRepository.findByJoinCode(normalized)
                 // เผื่อผู้ใช้พิมพ์มาแค่ AB12CD โดยไม่มี SM-
                 .or(() -> billRepository.findByJoinCode(CODE_PREFIX + normalized))
-                .orElseThrow(() -> new ResourceNotFoundException("ไม่พบบิลที่ใช้รหัสนี้"));
-        if ("CANCELLED".equals(bill.getStatus())) throw new ConflictException("บิลนี้ถูกยกเลิกแล้ว");
+                .orElse(null);
+        if (bill == null) {
+            attemptLimiter.recordFailure(JOIN_ACTION, currentUserId);
+            throw new ResourceNotFoundException("ไม่พบบิลที่ใช้รหัสนี้");
+        }
+        attemptLimiter.reset(JOIN_ACTION, currentUserId);
+        if (BillStatus.CANCELLED.equals(bill.getStatus())) throw new ConflictException("บิลนี้ถูกยกเลิกแล้ว");
+        // ถ้ากดเข้าร่วมซ้ำพร้อมกัน unique index ux_bill_members_bill_user จะกันแถวซ้ำ (ได้ 409)
         if (!isOwner(bill, currentUserId) && !billMemberRepository.existsByBill_IdAndUser_Id(bill.getId(), currentUserId)) {
-            addMember(bill, findUser(currentUserId), "MEMBER");
+            addMember(bill, findUser(currentUserId), MemberRole.MEMBER);
         }
         return mapper.toResponse(bill);
     }
@@ -539,6 +561,20 @@ public class BillServiceImpl implements BillService {
         String data = request.splitConfigData();
         config.setConfigData(data == null || data.isBlank() ? "{}" : data);
         bill.setSplitConfig(splitConfigRepository.save(config));
+    }
+
+    // splitConfigData มาจากหน้าเว็บและเก็บลงคอลัมน์ jsonb — ต้องเป็น JSON object/array ที่ถูกต้อง
+    // ไม่อย่างนั้นฐานข้อมูลจะ error เป็น 500 แทนที่จะตอบ 400
+    private void requireValidJson(String data) {
+        if (data == null || data.isBlank()) return;
+        try {
+            var node = jsonMapper.readTree(data);
+            if (node == null || !(node.isObject() || node.isArray())) {
+                throw new IllegalArgumentException("splitConfigData ต้องเป็น JSON object หรือ array");
+            }
+        } catch (JacksonException e) {
+            throw new IllegalArgumentException("splitConfigData ไม่ใช่ JSON ที่ถูกต้อง");
+        }
     }
 
     private BigDecimal zero(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
