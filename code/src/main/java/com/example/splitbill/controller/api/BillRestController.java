@@ -38,6 +38,14 @@ public class BillRestController {
         return ResponseEntity.created(URI.create("/api/v1/bills/" + created.id())).body(created);
     }
 
+    // สร้างบิลฉบับร่างตอนเข้าขั้นที่ 2 ของหน้าสร้างบิล เพื่อให้รหัสเข้าร่วมใช้ได้ทันที
+    @PostMapping("/draft")
+    public ResponseEntity<BillResponse> createDraft(@Valid @RequestBody BillRequest request,
+                                                    @SessionAttribute(WebConfig.USER_ID) Long userId) {
+        BillResponse created = service.createDraft(request, userId);
+        return ResponseEntity.created(URI.create("/api/v1/bills/" + created.id())).body(created);
+    }
+
     // บิลที่ผู้ใช้สร้าง + บิลที่เข้าร่วม เรียงจากใหม่ไปเก่า
     @GetMapping
     public Page<BillResponse> list(@SessionAttribute(WebConfig.USER_ID) Long userId,
@@ -83,6 +91,13 @@ public class BillRestController {
     @GetMapping("/{id}/members")
     public List<BillMemberResponse> members(@PathVariable Long id, @SessionAttribute(WebConfig.USER_ID) Long userId) {
         return service.members(id, userId);
+    }
+
+    @DeleteMapping("/{id}/members/{userId}")
+    public ResponseEntity<Void> removeMember(@PathVariable Long id, @PathVariable("userId") Long memberUserId,
+                                             @SessionAttribute(WebConfig.USER_ID) Long userId) {
+        service.removeMember(id, memberUserId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     // ---------- สลิป/ใบเสร็จ ----------

@@ -888,6 +888,32 @@ dialog::backdrop {
     position: relative
 }
 
+.mc-wrap {
+    position: relative;
+    display: grid
+}
+
+/* ปุ่มเอาคนที่เข้าร่วมด้วยรหัสออก (มุมซ้ายบนของการ์ดสมาชิก) */
+.mc-kick {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: #fff;
+    color: #c0392b;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer
+}
+
+.mc-kick:hover {
+    background: #fdecea;
+    border-color: #f5b7b1
+}
+
 .mc.on {
     border-color: var(--g);
     background: var(--g-l)

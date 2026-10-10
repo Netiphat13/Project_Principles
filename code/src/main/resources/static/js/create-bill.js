@@ -59,13 +59,18 @@
     custom: {},
     paid: { [me]: true },
     code: serverCode,
+    // บิลฉบับร่างที่สร้างตอนเข้าขั้นที่ 2 — มีแล้วเพื่อนกรอกรหัสเข้าร่วมได้ทันที
+    billId: null,
+    // ผู้ใช้ที่กรอกรหัสเข้าร่วมบิลฉบับร่างแล้ว (username)
+    joined: [],
+    joinedIds: {},
     invited: [],
     q: '',
     saving: false,
     msg: ''
   }
 
-  const all = () => [...new Set([me, ...friends, ...st.invited.map(u => u.username)])]
+  const all = () => [...new Set([me, ...st.joined, ...friends, ...st.invited.map(u => u.username)])]
   const joinLink = () => location.origin + '/join?code=' + encodeURIComponent(st.code)
 
   const resultsHtml = () => found
@@ -92,6 +97,7 @@
         const u = await api.get('/api/v1/users/lookup?email=' + encodeURIComponent(v))
         if (seq !== lookupSeq) return
         if (u.id === user.id) lookupMsg = 'นี่คืออีเมลของคุณเอง'
+        else if (st.joined.includes(u.username)) lookupMsg = 'คนนี้เข้าร่วมบิลแล้ว'
         else if (st.invited.some(x => x.id === u.id)) lookupMsg = 'เพิ่มคนนี้แล้ว'
         else if (all().includes(u.username)) lookupMsg = 'มีชื่อ "' + u.username + '" ในบิลแล้ว'
         else found = u
@@ -399,7 +405,8 @@
           <p class="muted">เลือกเพื่อนที่ร่วมมื้ออาหาร</p>
 
           <div class="mgrid">
-            ${all().map(n => `
+            ${all().map(n => {
+              const card = `
               <button
                 class="mc${st.sel.includes(n) ? ' on' : ''}"
                 data-act="tm"
@@ -407,9 +414,18 @@
               >
                 ${av(n, 44)}
                 <b>${esc(n)}</b>
-                <span class="muted">${n === me ? 'คุณ' : st.invited.some(u => u.username === n) ? 'มีบัญชี · จะได้รับคำเชิญ' : 'เพื่อน'}</span>
-              </button>
-            `).join('')}
+                <span class="muted">${n === me ? 'คุณ'
+                  : st.joined.includes(n) ? 'มีบัญชี · เข้าร่วมด้วยรหัส'
+                  : st.invited.some(u => u.username === n) ? 'มีบัญชี · จะได้รับคำเชิญ' : 'เพื่อน'}</span>
+              </button>`
+              // คนที่เข้าร่วมด้วยรหัส: เจ้าของบิลเอาออกจากบิลได้
+              return st.joined.includes(n)
+                ? `<div class="mc-wrap">${card}
+                    <button type="button" class="mc-kick" data-act="kick" data-n="${esc(n)}"
+                      title="เอาออกจากบิล" aria-label="เอา ${esc(n)} ออกจากบิล">✕</button>
+                  </div>`
+                : card
+            }).join('')}
 
             <button class="mc" data-act="af">
               <div
@@ -429,7 +445,9 @@
           <span class="tag" style="width:fit-content">INVITE FRIENDS</span>
           <h2>ชวนเพื่อนเข้าร่วมบิล</h2>
           <p class="muted">
-            หลังบันทึกบิล ให้เพื่อนกรอกรหัสนี้ที่หน้า "บิลของฉัน" → "เข้าร่วมบิล" หรือส่งลิงก์ให้
+            ${st.billId
+              ? 'ให้เพื่อนกรอกรหัสนี้ที่ปุ่ม "เข้าร่วมบิล" หรือส่งลิงก์ให้ เข้าร่วมได้ทันที รายชื่อจะขึ้นด้านซ้ายอัตโนมัติ — รหัสใช้ได้จนกว่าจะกดบันทึกบิล'
+              : 'สร้างรหัสไม่สำเร็จ ให้เชิญเพื่อนด้วยอีเมลแทน'}
           </p>
           ${st.code
             ? `<span class="code" style="width:fit-content">${esc(st.code)}</span>
@@ -989,23 +1007,6 @@
       </div>
 
       <div class="field">
-        <label>ไอคอน</label>
-        <div class="emoji-pick">
-          ${ICONS.map(e => `
-            <label>
-              <input
-                type="radio"
-                name="ic"
-                value="${e}"
-                ${e === it.icon ? ' checked' : ''}
-              >
-              <span>${e}</span>
-            </label>
-          `).join('')}
-        </div>
-      </div>
-
-      <div class="field">
         <label>ใครกินบ้าง</label>
         <div class="chips">
           ${st.sel.map(n => `
@@ -1038,6 +1039,103 @@
     $('#dI').showModal()
   }
 
+  // สร้างบิลฉบับร่างครั้งแรกที่ไปขั้นที่ 2 เพื่อให้รหัสเข้าร่วมใช้ได้ทันที
+  // ถ้าสร้างไม่สำเร็จ ยังสร้างบิลต่อได้ตามปกติ (รหัสจะใช้ได้หลังบันทึกบิล)
+  async function ensureDraft() {
+    if (st.billId) return
+    const i = st.info
+    try {
+      const draft = await api.post('/api/v1/bills/draft', {
+        restaurantName: i.shop.trim(),
+        billDate: i.date || null,
+        billTime: i.time || null,
+        note: i.note.trim() || null,
+        joinCode: st.code || null
+      })
+      st.billId = draft.id
+      st.code = draft.joinCode || st.code
+      pollMembers()
+    } catch {}
+  }
+
+  // ดึงรายชื่อคนที่กรอกรหัสเข้าร่วมบิลฉบับร่าง แล้วเพิ่มเข้าบิลให้อัตโนมัติ
+  let pollTimer
+  // เพิ่มทุกครั้งที่เอาคนออก ผลการดึงรายชื่อที่เริ่มก่อนหน้านั้นจะถูกทิ้ง (กันคนที่เพิ่งลบเด้งกลับมา)
+  let kickSeq = 0
+  async function pollMembers() {
+    clearTimeout(pollTimer)
+    if (!st.billId || st.saved) return
+    try {
+      const seq = kickSeq
+      const list = await api.get('/api/v1/bills/' + st.billId + '/members')
+      if (seq !== kickSeq) throw 0
+      list.forEach(m => { if (m.username) st.joinedIds[m.username] = m.userId })
+      const fresh = list
+        .map(m => m.username)
+        .filter(n => n && n !== me && !st.joined.includes(n))
+      if (fresh.length) {
+        fresh.forEach(n => {
+          st.joined.push(n)
+          // คนที่เคยเชิญด้วยอีเมลแล้วเข้าร่วมเอง ไม่ต้องส่งคำเชิญซ้ำ
+          st.invited = st.invited.filter(u => u.username !== n)
+          if (!st.sel.includes(n)) {
+            st.sel.push(n)
+            st.items.forEach(it => {
+              if (!it.eaters.includes(n)) it.eaters.push(n)
+            })
+          }
+        })
+        notify(fresh.join(', ') + ' เข้าร่วมบิลแล้ว')
+        if (!st.saving) rerender()
+      }
+    } catch {}
+    pollTimer = setTimeout(pollMembers, 3000)
+  }
+
+  // เจ้าของบิลเอาคนที่เข้าร่วมด้วยรหัสออก (ลบสมาชิกในฐานข้อมูลด้วย)
+  async function kick(n, btn) {
+    const uid = st.joinedIds[n]
+    if (!st.billId || !uid) return
+    btn.disabled = true
+    kickSeq++
+    try {
+      await api.delete('/api/v1/bills/' + st.billId + '/members/' + uid)
+    } catch (err) {
+      // ไม่พบแล้ว = ถูกลบไปก่อนหน้า ถือว่าสำเร็จ
+      if (err.status !== 404) {
+        btn.disabled = false
+        st.msg = 'เอา ' + n + ' ออกไม่สำเร็จ: ' + err.message
+        return render()
+      }
+    }
+    kickSeq++
+    st.joined = st.joined.filter(x => x !== n)
+    delete st.joinedIds[n]
+    st.sel = st.sel.filter(x => x !== n)
+    st.items.forEach(i => { i.eaters = i.eaters.filter(x => x !== n) })
+    delete st.pct[n]
+    delete st.custom[n]
+    delete st.paid[n]
+    if (st.treat === n) st.treat = me
+    notify('เอา ' + n + ' ออกจากบิลแล้ว')
+    rerender()
+  }
+
+  // วาดหน้าใหม่โดยไม่ทำให้ช่องที่กำลังพิมพ์หลุดโฟกัส
+  function rerender() {
+    const a = document.activeElement
+    const fid = a && a.id && $('#app').contains(a) ? a.id : null
+    const pos = fid && typeof a.selectionStart === 'number' ? a.selectionStart : null
+    render()
+    if (!fid) return
+    const el = document.getElementById(fid)
+    if (!el) return
+    el.focus()
+    if (pos !== null) {
+      try { el.setSelectionRange(pos, pos) } catch {}
+    }
+  }
+
   async function save() {
     if (st.saving) return
     st.saving = true
@@ -1063,7 +1161,7 @@
     }
 
     try {
-      const created = await api.post('/api/v1/bills', {
+      const payload = {
         restaurantName: i.shop.trim(),
         billDate: i.date || null,
         billTime: i.time || null,
@@ -1081,7 +1179,12 @@
           amount: round2(Number(c.share[n]) || 0),
           paid: !!st.paid[n]
         }))
-      })
+      }
+      // มีบิลฉบับร่างแล้ว (สร้างตอนขั้นที่ 2) -> บันทึกทับฉบับร่าง ไม่อย่างนั้นสร้างใหม่
+      const created = st.billId
+        ? await api.put('/api/v1/bills/' + st.billId, payload)
+        : await api.post('/api/v1/bills', payload)
+      st.saved = true
 
       // ส่งคำเชิญให้เพื่อนที่มีบัญชี
       const sent = await Promise.allSettled(
@@ -1090,7 +1193,7 @@
           .map(u => api.post('/api/v1/bills/' + created.id + '/invitations', { inviteeId: u.id }))
       )
       if (sent.some(r => r.status === 'rejected')) {
-        notify('บันทึกบิลแล้ว แต่ส่งคำเชิญบางคนไม่สำเร็จ เชิญใหม่ได้ที่หน้ารายละเอียดบิล')
+        notify('บันทึกบิลแล้ว แต่ส่งคำเชิญบางคนไม่สำเร็จ ให้เพื่อนเข้าร่วมด้วยรหัสบิลแทน')
       }
 
       // อัปโหลดสลิป/ใบเสร็จ (ถ้ามี)
@@ -1145,6 +1248,8 @@
           st.items.forEach(i => i.eaters.push(n))
         }
       }
+    } else if (a === 'kick') {
+      return kick(n, b)
     } else if (a === 'af') {
       $('#dF').showModal()
       return
@@ -1198,6 +1303,13 @@
 
       if (!st.msg) {
         if (st.step === 4) return await save()
+        if (st.step === 0) {
+          // กันกด "ถัดไป" ซ้ำระหว่างรอสร้างฉบับร่าง
+          if (st.busy) return
+          st.busy = true
+          await ensureDraft()
+          st.busy = false
+        }
         st.step++
       }
     }
@@ -1250,7 +1362,8 @@
       name: f.name.value.trim(),
       price: +f.price.value,
       qty: Math.max(1, Math.floor(+f.qty.value)),
-      icon: f.ic.value,
+      // ไม่ให้เลือกไอคอนแล้ว ใช้ไอคอนเดิมของรายการ (ถ้ามี) หรือไอคอนจาน
+      icon: st.items.find(x => x.id === id)?.icon || ICONS[0],
       eaters: $$('[name=e]:checked', f).map(x => x.value)
     }
 

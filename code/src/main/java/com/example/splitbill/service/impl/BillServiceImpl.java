@@ -124,6 +124,18 @@ public class BillServiceImpl implements BillService {
         return mapper.toResponse(saved);
     }
 
+    @Override
+    public BillResponse createDraft(BillRequest request, Long currentUserId) {
+        Bill bill = new Bill();
+        bill.setCreatedBy(findUser(currentUserId));
+        bill.setStatus(BillStatus.DRAFT);
+        bill.setJoinCode(resolveJoinCode(request.joinCode()));
+        applyFields(bill, request);
+        Bill saved = billRepository.save(bill);
+        addMember(saved, saved.getCreatedBy(), MemberRole.OWNER);
+        return mapper.toResponse(saved);
+    }
+
     @Override @Transactional(readOnly = true)
     public BillResponse getById(Long id, Long currentUserId) {
         return mapper.toResponse(findAccessible(id, currentUserId));
@@ -143,6 +155,8 @@ public class BillServiceImpl implements BillService {
     public BillResponse update(Long id, BillRequest request, Long currentUserId) {
         Bill bill = findOwned(id, currentUserId);
         requireValidJson(request.splitConfigData());
+        // บันทึกบิลฉบับร่างจากหน้าสร้างบิล -> กลายเป็นบิลจริง (รอจ่าย)
+        if (BillStatus.DRAFT.equals(bill.getStatus())) bill.setStatus(BillStatus.DEFAULT);
         applyFields(bill, request);
         billItemRepository.deleteAll(bill.getItems());
         bill.getItems().clear();
@@ -181,7 +195,7 @@ public class BillServiceImpl implements BillService {
 
     @Override @Transactional(readOnly = true)
     public BillSummary summarize(Long userId) {
-        long count = billRepository.countByCreatedById(userId);
+        long count = billRepository.countNonDraftByCreatedById(userId);
         BigDecimal total = billRepository.sumTotalAmountByCreatedById(userId).setScale(2, RoundingMode.HALF_UP);
         BigDecimal average = count == 0 ? BigDecimal.ZERO.setScale(2)
                 : total.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
@@ -218,11 +232,17 @@ public class BillServiceImpl implements BillService {
             throw new ResourceNotFoundException("ไม่พบบิลที่ใช้รหัสนี้");
         }
         attemptLimiter.reset(JOIN_ACTION, currentUserId);
-        if (BillStatus.CANCELLED.equals(bill.getStatus())) throw new ConflictException("บิลนี้ถูกยกเลิกแล้ว");
-        // ถ้ากดเข้าร่วมซ้ำพร้อมกัน unique index ux_bill_members_bill_user จะกันแถวซ้ำ (ได้ 409)
-        if (!isOwner(bill, currentUserId) && !billMemberRepository.existsByBill_IdAndUser_Id(bill.getId(), currentUserId)) {
-            addMember(bill, findUser(currentUserId), MemberRole.MEMBER);
+        // คนที่อยู่ในบิลแล้วกรอกรหัสซ้ำ -> พาไปที่บิลได้ตามปกติ
+        if (isOwner(bill, currentUserId) || billMemberRepository.existsByBill_IdAndUser_Id(bill.getId(), currentUserId)) {
+            return mapper.toResponse(bill);
         }
+        if (BillStatus.CANCELLED.equals(bill.getStatus())) throw new ConflictException("บิลนี้ถูกยกเลิกแล้ว");
+        // เข้าร่วมด้วยรหัสได้เฉพาะตอนเจ้าของบิลกำลังสร้างบิล (ฉบับร่าง) — บันทึกบิลแล้วปิดรับคนเพิ่ม
+        if (!BillStatus.DRAFT.equals(bill.getStatus())) {
+            throw new ConflictException("บิลนี้บันทึกเรียบร้อยแล้ว ไม่สามารถเข้าร่วมด้วยรหัสได้");
+        }
+        // ถ้ากดเข้าร่วมซ้ำพร้อมกัน unique index ux_bill_members_bill_user จะกันแถวซ้ำ (ได้ 409)
+        addMember(bill, findUser(currentUserId), MemberRole.MEMBER);
         return mapper.toResponse(bill);
     }
 
@@ -230,6 +250,18 @@ public class BillServiceImpl implements BillService {
     public List<BillMemberResponse> members(Long billId, Long currentUserId) {
         findAccessible(billId, currentUserId);
         return billMemberRepository.findUsersByBillId(billId);
+    }
+
+    @Override
+    public void removeMember(Long billId, Long memberUserId, Long currentUserId) {
+        Bill bill = findOwned(billId, currentUserId);
+        if (isOwner(bill, memberUserId)) throw new IllegalArgumentException("เอาเจ้าของบิลออกจากบิลไม่ได้");
+        if (!BillStatus.DRAFT.equals(bill.getStatus())) {
+            throw new ConflictException("เอาสมาชิกออกได้เฉพาะระหว่างสร้างบิล");
+        }
+        BillMember member = billMemberRepository.findByBill_IdAndUser_Id(billId, memberUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("ไม่พบสมาชิกคนนี้ในบิล"));
+        billMemberRepository.delete(member);
     }
 
     // ---------- สลิป/ใบเสร็จ ----------
