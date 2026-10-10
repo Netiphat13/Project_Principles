@@ -87,8 +87,8 @@ Supporting Components:
 
 ระบบใช้ฐานข้อมูล PostgreSQL เพื่อจัดเก็บข้อมูลบัญชีผู้ใช้ บิล รายการค่าใช้จ่าย สมาชิก และการชำระเงิน โดยโครงสร้างตารางและความสัมพันธ์ระหว่างตารางแสดงไว้ใน ER Diagram ด้านล่าง
 
-![SplitMate ER Diagram]<img width="2048" height="1972" alt="er" src="<img width="945" height="1024" alt="er" src="https://github.com/user-attachments/assets/4fcfe931-4668-4cac-9364-9f26b199ac7c" />
-" /># SplitMate — ระบบจัดการและแบ่งบิลค่าใช้จ่าย
+src="<img width="945" height="1024" alt="er" src="https://github.com/user-attachments/assets/4fcfe931-4668-4cac-9364-9f26b199ac7c" />
+ SplitMate — ระบบจัดการและแบ่งบิลค่าใช้จ่าย
 
 ### คำอธิบาย ER Diagram
 
