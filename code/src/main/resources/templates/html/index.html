@@ -12,20 +12,20 @@
 <body>
     <div class="shell">
         <aside class="side">
-            <a href="index.html" class="logo">
+            <a href="/home" class="logo">
                 <i>ıl</i>
                 <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
             </a>
-            <a class="nav active" href="index.html">🏠<span>แดชบอร์ด</span></a>
-            <a class="nav" href="create-bill.html">➕<span>สร้างบิล</span></a>
-            <a class="nav" href="bills.html">🧾<span>บิลของฉัน</span></a>
-            <a class="nav" href="stats.html">📊<span>สถิติ</span></a>
-            <a class="nav" href="profile.html">👤<span>โปรไฟล์</span></a>
+            <a class="nav active" href="/home">🏠<span>แดชบอร์ด</span></a>
+            <a class="nav" href="/bills/new">➕<span>สร้างบิล</span></a>
+            <a class="nav" href="/bills">🧾<span>บิลของฉัน</span></a>
+            <a class="nav" href="/stats">📊<span>สถิติ</span></a>
+            <a class="nav" href="/profile">👤<span>โปรไฟล์</span></a>
 
             <div class="promo">
                 ✨<b>หารแฟร์ขึ้นอีกขั้น</b>
                 ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br>
-                <a href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
+                <a href="/bills/new" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
             </div>
 
             <div class="me">
@@ -43,7 +43,7 @@
                 <div class="row">
                     <input class="search" placeholder="ค้นหา..." aria-label="ค้นหา">
                     <button class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button>
-                    <a href="profile.html" class="av" data-pinit>P</a>
+                    <a href="/profile" class="av" data-pinit>P</a>
                 </div>
             </header>
 
@@ -54,7 +54,10 @@
                         <h1>สวัสดี, <span data-pshort></span> 👋</h1>
                         <p class="muted">พร้อมหารบิลมื้อนี้แบบแฟร์ ๆ หรือยัง?</p>
                     </div>
-                    <a href="create-bill.html" class="btn">＋ สร้างบิลใหม่</a>
+                    <div class="row">
+                        <button type="button" class="btn ghost" data-join>🔑 เข้าร่วมบิล</button>
+                        <a href="/bills/new" class="btn">＋ สร้างบิลใหม่</a>
+                    </div>
                 </div>
 
                 <div class="grid g4" id="st"></div>
@@ -78,7 +81,7 @@
                         <h2>บิลล่าสุด</h2>
                         <p class="muted">ติดตามและจัดการบิลของคุณ</p>
                     </div>
-                    <a href="bills.html" style="color:var(--g-d);font-weight:600">ดูทั้งหมด →</a>
+                    <a href="/bills" style="color:var(--g-d);font-weight:600">ดูทั้งหมด →</a>
                 </div>
 
                 <div class="card" id="recent"></div>
@@ -88,40 +91,68 @@
 
     <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
     <script>
-        const bills = S.get('bills', []);
-
         $('#d').textContent = new Date().toLocaleDateString('th-TH', { dateStyle: 'full' });
 
-        const due = bills.filter(b => b.status !== 'paid').reduce((a, b) => a + +b.total, 0);
-        const sum = bills.reduce((a, b) => a + +b.total, 0);
+        SM.ready.then(async ({ user }) => {
+            try {
+                const bills = await SM.loadBills();
+                const mine = bills.filter(b => b.createdById === user.id);
+                const sum = bills.reduce((a, b) => a + Number(b.totalAmount || 0), 0);
+                const due = bills
+                    .filter(b => !['paid', 'cancelled'].includes(statusKey(b.status)))
+                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0);
 
-        $('#st').innerHTML = [
-            ['🍴', 'ค่าอาหารรวม', baht(sum), '#fdeae6'],
-            ['🧾', 'จำนวนบิล', bills.length, '#efecfd'],
-            ['👛', 'ยอดค้างชำระ', baht(due), '#fff1e0'],
-            ['👥', 'เพื่อนต้องคืน', baht(0), '#e6f6f1']
-        ].map(([i, l, v, bg]) => `
-            <div class="card row stat">
-                <div class="ico" style="background:${bg}">${i}</div>
-                <div><span class="muted">${l}</span><b>${v}</b></div>
-            </div>
-        `).join('');
-
-        $('#chart').innerHTML = empty('📊', 'ยังไม่มีข้อมูลการใช้จ่าย', 'กราฟจะแสดงเมื่อมีบิล');
-
-        $('#recent').innerHTML = bills.length
-            ? '<div class="list">' + bills.slice(-3).reverse().map(b => `
-                <a href="bill-detail.html?id=${b.id}">
-                    <div class="ico" style="background:#fff1e0">🍽️</div>
-                    <div style="flex:1">
-                        <b>${esc(b.shop)}</b>
-                        <div class="muted">${fmtDate(b.date)} · ${b.people} คน</div>
+                $('#st').innerHTML = [
+                    ['🍴', 'ค่าอาหารรวม', baht(sum), '#fdeae6'],
+                    ['🧾', 'จำนวนบิล', bills.length, '#efecfd'],
+                    ['👛', 'ยอดค้างชำระ', baht(due), '#fff1e0'],
+                    ['👥', 'บิลที่ฉันสร้าง', mine.length, '#e6f6f1']
+                ].map(([i, l, v, bg]) => `
+                    <div class="card row stat">
+                        <div class="ico" style="background:${bg}">${i}</div>
+                        <div><span class="muted">${l}</span><b>${v}</b></div>
                     </div>
-                    <b>${baht(b.total)}</b>
-                    <span class="pill ${b.status}">${ST[b.status]}</span>
-                </a>
-            `).join('') + '</div>'
-            : empty('🧾', 'ยังไม่มีบิล', 'เริ่มสร้างบิลแรกของคุณได้เลย', '<a class="btn" href="create-bill.html">＋ สร้างบิล</a>');
+                `).join('');
+
+                // ยอดใช้จ่าย 7 วันล่าสุด (ตามวันที่ของบิล)
+                const days = [...Array(7)].map((_, k) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - (6 - k));
+                    return d;
+                });
+                const key = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                const week = days.map(d => bills
+                    .filter(b => b.billDate === key(d))
+                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0));
+                const max = Math.max(...week, 1);
+
+                $('#chart').innerHTML = week.some(v => v > 0)
+                    ? '<div class="bars">' + days.map((d, k) => `
+                        <div class="${k === 6 ? 'on' : ''}" title="${baht(week[k])}">
+                            <span style="height:${Math.max(4, Math.round(week[k] / max * 120))}px"></span>
+                            ${d.toLocaleDateString('th-TH', { weekday: 'short' })}
+                        </div>
+                    `).join('') + '</div>'
+                    : empty('📊', 'ยังไม่มีการใช้จ่ายใน 7 วันนี้', 'กราฟจะแสดงเมื่อมีบิลในสัปดาห์นี้');
+
+                $('#recent').innerHTML = bills.length
+                    ? '<div class="list">' + bills.slice(0, 3).map(b => `
+                        <a href="/bills/detail?id=${b.id}">
+                            <div class="ico" style="background:#fff1e0">🍽️</div>
+                            <div style="flex:1">
+                                <b>${esc(b.restaurantName)}</b>
+                                <div class="muted">${fmtDate(b.billDate)} · ${b.createdById === user.id ? 'คุณสร้าง' : 'สร้างโดย ' + esc(b.createdByName)}</div>
+                            </div>
+                            <b>${baht(b.totalAmount)}</b>
+                            <span class="pill ${statusKey(b.status)}">${statusLabel(b.status)}</span>
+                        </a>
+                    `).join('') + '</div>'
+                    : empty('🧾', 'ยังไม่มีบิล', 'เริ่มสร้างบิลแรก หรือกรอกรหัสเพื่อเข้าร่วมบิลของเพื่อน',
+                        '<a class="btn" href="/bills/new">＋ สร้างบิล</a>');
+            } catch (err) {
+                $('#recent').innerHTML = empty('⚠️', 'โหลดข้อมูลไม่สำเร็จ', esc(err.message));
+            }
+        }).catch(() => {});
     </script>
 </body>
 

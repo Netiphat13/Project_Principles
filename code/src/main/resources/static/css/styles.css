@@ -112,6 +112,8 @@ a {
 }
 
 .pill {
+    white-space: nowrap;
+    flex-shrink: 0;
     padding: 3px 10px;
     border-radius: 99px;
     font-size: 11px;
@@ -131,6 +133,11 @@ a {
 .pill.overdue {
     background: var(--red-l);
     color: var(--red)
+}
+
+.pill.cancelled {
+    background: var(--line);
+    color: var(--mut)
 }
 
 .muted {

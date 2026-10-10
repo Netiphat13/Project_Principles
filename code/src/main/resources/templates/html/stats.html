@@ -12,20 +12,20 @@
 <body>
     <div class="shell">
         <aside class="side">
-            <a href="index.html" class="logo">
+            <a href="/home" class="logo">
                 <i>ıl</i>
                 <div><b>SplitMate</b><small>EAT TOGETHER. PAY FAIR.</small></div>
             </a>
-            <a class="nav" href="index.html">🏠<span>แดชบอร์ด</span></a>
-            <a class="nav" href="create-bill.html">➕<span>สร้างบิล</span></a>
-            <a class="nav" href="bills.html">🧾<span>บิลของฉัน</span></a>
-            <a class="nav active" href="stats.html">📊<span>สถิติ</span></a>
-            <a class="nav" href="profile.html">👤<span>โปรไฟล์</span></a>
+            <a class="nav" href="/home">🏠<span>แดชบอร์ด</span></a>
+            <a class="nav" href="/bills/new">➕<span>สร้างบิล</span></a>
+            <a class="nav" href="/bills">🧾<span>บิลของฉัน</span></a>
+            <a class="nav active" href="/stats">📊<span>สถิติ</span></a>
+            <a class="nav" href="/profile">👤<span>โปรไฟล์</span></a>
 
             <div class="promo">
                 ✨<b>หารแฟร์ขึ้นอีกขั้น</b>
                 ให้ Smart Split ช่วยแนะนำวิธีที่เหมาะที่สุด<br>
-                <a href="create-bill.html" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
+                <a href="/bills/new" style="color:var(--g-d);font-weight:600">ลองเลย →</a>
             </div>
 
             <div class="me">
@@ -43,7 +43,7 @@
                 <div class="row">
                     <input class="search" placeholder="ค้นหา..." aria-label="ค้นหา">
                     <button class="btn ghost" id="bell" style="padding:8px" aria-label="แจ้งเตือน">🔔</button>
-                    <a href="profile.html" class="av" data-pinit>P</a>
+                    <a href="/profile" class="av" data-pinit>P</a>
                 </div>
             </header>
 
@@ -80,19 +80,66 @@
 
     <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
     <script>
-        const b = S.get('bills', []), sum = b.reduce((a, x) => a + +x.total, 0);
+        SM.ready.then(async () => {
+            const b = await SM.loadBills();
+            const sum = b.reduce((a, x) => a + Number(x.totalAmount || 0), 0);
+            const counts = Object.entries(b.reduce((m, x) => {
+                const k = x.restaurantName || 'ไม่ระบุ';
+                m[k] = (m[k] || 0) + 1;
+                return m;
+            }, {})).sort((a, c) => c[1] - a[1]);
 
-        $('#st').innerHTML = [
-            ['ค่าเฉลี่ยต่อบิล', baht(b.length ? Math.round(sum / b.length) : 0), '#fdeae6'],
-            ['ร้านโปรด', b.length ? esc(Object.entries(b.reduce((m, x) => (m[x.shop] = (m[x.shop] || 0) + 1, m), {})).sort((a, c) => c[1] - a[1])[0][0]) : '-', '#fff1e0'],
-            ['จำนวนบิล', b.length, '#efecfd'],
-            ['ใช้จ่ายรวม', baht(sum), '#e6f6f1']
-        ].map(([l, v, bg]) => `<div class="card stat"><div class="ico" style="background:${bg};margin-bottom:8px">•</div><span class="muted">${l}</span><b style="font-size:20px">${v}</b></div>`).join('');
+            $('#st').innerHTML = [
+                ['ค่าเฉลี่ยต่อบิล', baht(b.length ? sum / b.length : 0), '#fdeae6'],
+                ['ร้านโปรด', counts[0]?.[0] || '-', '#fff1e0'],
+                ['จำนวนบิล', b.length, '#efecfd'],
+                ['ใช้จ่ายรวม', baht(sum), '#e6f6f1']
+            ].map(([l, v, bg]) => `
+                <div class="card stat">
+                    <div class="ico" style="background:${bg};margin-bottom:8px">•</div>
+                    <span class="muted">${l}</span>
+                    <b style="font-size:20px">${esc(v)}</b>
+                </div>
+            `).join('');
 
-        $('#c1').innerHTML = empty('📈', 'ยังไม่มีข้อมูล', 'กราฟจะแสดงเมื่อมีบิลหลายเดือน');
-        $('#c2').innerHTML = empty('🍩', 'ยังไม่มีข้อมูล', 'ระบบจะแยกหมวดหมู่ให้เมื่อมีรายการอาหาร');
-        $('#c3').innerHTML = empty('💡', 'ยังไม่มีอินไซต์', 'สร้างบิลเพิ่มเพื่อให้ระบบวิเคราะห์');
-        $('#c4').innerHTML = empty('🏆', 'ยังไม่มีความสำเร็จ', 'สร้างบิลแรกเพื่อเริ่มปลดล็อก');
+            // ยอดรายเดือน 6 เดือนล่าสุด (ตามวันที่ของบิล)
+            const months = [...Array(6)].map((_, k) => {
+                const d = new Date();
+                d.setDate(1);
+                d.setMonth(d.getMonth() - (5 - k));
+                return d;
+            });
+            const ym = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            const perMonth = months.map(d => b
+                .filter(x => String(x.billDate || '').slice(0, 7) === ym(d))
+                .reduce((a, x) => a + Number(x.totalAmount || 0), 0));
+            const max = Math.max(...perMonth, 1);
+
+            $('#c1').innerHTML = perMonth.some(v => v > 0)
+                ? '<div class="bars">' + months.map((d, k) => `
+                    <div class="${k === 5 ? 'on' : ''}" title="${baht(perMonth[k])}">
+                        <span style="height:${Math.max(4, Math.round(perMonth[k] / max * 120))}px"></span>
+                        ${d.toLocaleDateString('th-TH', { month: 'short' })}
+                    </div>
+                `).join('') + '</div>'
+                : empty('📈', 'ยังไม่มีข้อมูล', 'กราฟจะแสดงเมื่อมีบิลในช่วง 6 เดือนนี้');
+
+            $('#c2').innerHTML = b.length
+                ? '<div class="list">' + counts.slice(0, 5).map(([k, v]) => `
+                    <div><span style="flex:1">${esc(k)}</span><b>${v} บิล</b></div>
+                `).join('') + '</div>'
+                : empty('🍩', 'ยังไม่มีข้อมูล', 'ระบบจะสรุปร้านที่ไปบ่อยเมื่อมีบิล');
+
+            $('#c3').innerHTML = b.length
+                ? empty('💡', 'ร้านที่ไปบ่อยที่สุด', `${esc(counts[0][0])} · ${counts[0][1]} บิล`)
+                : empty('💡', 'ยังไม่มีอินไซต์', 'สร้างบิลเพิ่มเพื่อให้ระบบวิเคราะห์');
+
+            $('#c4').innerHTML = b.length
+                ? empty('🏆', 'เริ่มต้นได้ดี', `คุณมีบิลแล้ว ${b.length} รายการ`)
+                : empty('🏆', 'ยังไม่มีความสำเร็จ', 'สร้างบิลแรกเพื่อเริ่มปลดล็อก');
+        }).catch(err => {
+            $('#st').innerHTML = empty('⚠️', 'โหลดข้อมูลไม่สำเร็จ', esc(err.message));
+        });
     </script>
 </body>
 
