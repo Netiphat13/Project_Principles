@@ -16,6 +16,10 @@ import java.util.List;
 public interface BillService {
     BillResponse create(BillRequest request, Long currentUserId);
 
+    // บิลฉบับร่างตอนสร้างบิลขั้นที่ 2 — มีรหัสเข้าร่วมแล้ว เพื่อนกรอกรหัสเข้าร่วมได้ทันที
+    // บันทึกจริงด้วย update() ซึ่งจะเปลี่ยนสถานะจาก DRAFT เป็น PENDING
+    BillResponse createDraft(BillRequest request, Long currentUserId);
+
     // ดูได้เฉพาะเจ้าของบิลหรือสมาชิกของบิล
     BillResponse getById(Long id, Long currentUserId);
 
@@ -39,6 +43,9 @@ public interface BillService {
     BillResponse join(String code, Long currentUserId);
 
     List<BillMemberResponse> members(Long billId, Long currentUserId);
+
+    // เจ้าของบิลเอาคนที่เข้าร่วมด้วยรหัสออก (เฉพาะตอนบิลยังเป็นฉบับร่าง)
+    void removeMember(Long billId, Long memberUserId, Long currentUserId);
 
     // สลิป/ใบเสร็จของบิล
     void saveSlip(Long billId, Long currentUserId, MultipartFile file);

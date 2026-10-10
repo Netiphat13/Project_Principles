@@ -65,28 +65,12 @@
             treat: 'เลี้ยงเพื่อน',
             custom: 'กำหนดเอง'
         };
-        const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
         const id = qid();
 
-        let me, b, cfg, members = [], pending = [], payments = [], found = null, lookupMsg = '', lookupTimer, lookupSeq = 0;
+        let me, b, cfg, members = [], pending = [], payments = [];
 
         const isOwner = () => b && me && b.createdById === me.id;
-        const joinLink = () => location.origin + '/join?code=' + encodeURIComponent(b.joinCode || '');
-
-        const copyText = async (text, btn, label) => {
-            try {
-                await navigator.clipboard.writeText(text);
-            } catch {
-                const ta = document.createElement('textarea');
-                ta.value = text;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                ta.remove();
-            }
-            btn.textContent = 'คัดลอกแล้ว ✓';
-            setTimeout(() => { btn.textContent = label; }, 1500);
-        };
+        const isDraft = () => b && String(b.status).toUpperCase() === 'DRAFT';
 
         // ข้อมูลการแบ่งที่หน้าสร้างบิลบันทึกไว้ (สมาชิก, ยอดแต่ละคน, ใครกินอะไร)
         const splitInfo = () => {
@@ -98,57 +82,6 @@
                 : (b.items || []).map(i => ({ name: i.name, qty: i.quantity, price: Number(i.unitPrice), eaters: names }));
             return { names, shares, items };
         };
-
-        const lookupHtml = () => found
-            ? `<div class="kv">
-                    <span><b>${esc(found.username)}</b><span class="muted" style="display:block">${esc(found.email)}</span></span>
-                    <button type="button" class="btn soft sm" id="invBtn">＋ เชิญ</button>
-               </div>`
-            : (lookupMsg ? `<p class="muted" style="margin-top:6px">${esc(lookupMsg)}</p>` : '');
-
-        const lookup = email => {
-            clearTimeout(lookupTimer);
-            found = null;
-            lookupMsg = '';
-            const v = email.trim();
-            const seq = ++lookupSeq;
-            if (!EMAIL_RE.test(v)) {
-                $('#invr').innerHTML = '';
-                return;
-            }
-            lookupTimer = setTimeout(async () => {
-                try {
-                    const u = await api.get('/api/v1/users/lookup?email=' + encodeURIComponent(v));
-                    if (seq !== lookupSeq) return;
-                    if (u.id === me.id) lookupMsg = 'นี่คืออีเมลของคุณเอง';
-                    else if (members.some(m => m.userId === u.id)) lookupMsg = 'คนนี้อยู่ในบิลแล้ว';
-                    else if (pending.some(p => p.inviteeId === u.id)) lookupMsg = 'เชิญคนนี้ไปแล้ว รอการตอบรับ';
-                    else found = u;
-                } catch (err) {
-                    if (seq !== lookupSeq) return;
-                    lookupMsg = err.status === 404 ? 'ไม่พบผู้ใช้ที่ใช้อีเมลนี้' : err.message;
-                }
-                $('#invr').innerHTML = lookupHtml();
-                const btn = $('#invBtn');
-                if (btn) btn.onclick = invite;
-            }, 250);
-        };
-
-        async function invite() {
-            const btn = $('#invBtn');
-            if (!found) return;
-            btn.disabled = true;
-            try {
-                await api.post('/api/v1/bills/' + id + '/invitations', { inviteeId: found.id });
-                notify('ส่งคำเชิญถึง ' + found.username + ' แล้ว');
-                found = null;
-                await reload();
-            } catch (err) {
-                lookupMsg = err.message;
-                found = null;
-                $('#invr').innerHTML = lookupHtml();
-            }
-        }
 
         // ---------- สถานะการจ่ายเงินและสลิปรายสมาชิก ----------
         const PAY_OPTIONS = ['PENDING', 'PAID', 'OVERDUE'];
@@ -271,24 +204,12 @@
                     <span class="pill ${statusKey(b.status)}" style="font-size:13px">${statusLabel(b.status)}</span>
                 </div>
 
-                <div class="invite-card">
-                    <div>
-                        <span class="tag">INVITE FRIENDS</span>
-                        <h2 style="margin:7px 0 4px">ชวนเพื่อนเข้าร่วมบิลนี้</h2>
-                        <p class="muted">ส่งรหัสหรือลิงก์ให้เพื่อน หรือเชิญด้วยอีเมลของเพื่อนที่มีบัญชีแล้ว</p>
-                        <div class="field" style="margin:10px 0 0;max-width:340px">
-                            <input class="in" id="invq" type="email" placeholder="อีเมลเพื่อน เช่น name@email.com" autocomplete="off">
-                        </div>
-                        <div id="invr"></div>
-                    </div>
-
-                    <div class="invite-code-wrap">
-                        <span class="muted">รหัสเข้าร่วมบิล</span>
-                        <span class="code">${esc(b.joinCode || '-')}</span>
-                        <button class="btn ghost sm" id="copyCode" type="button">คัดลอกรหัส</button>
-                        <button class="btn ghost sm" id="copyLink" type="button">คัดลอกลิงก์</button>
-                    </div>
-                </div>
+                ${isDraft() ? `<div class="card" style="margin-bottom:16px">
+                    <b>⏳ เจ้าของบิลกำลังสร้างบิลนี้อยู่</b>
+                    <p class="muted" style="margin-top:4px">${isOwner()
+                        ? 'บิลนี้ยังเป็นฉบับร่าง ถ้าไม่ใช้แล้วลบทิ้งได้'
+                        : 'คุณเข้าร่วมบิลแล้ว รายการอาหารและยอดที่ต้องจ่ายจะแสดงเมื่อเจ้าของบิลบันทึกบิลเสร็จ'}</p>
+                </div>` : ''}
 
                 <div class="grid g2">
                     <div class="card">
@@ -432,10 +353,6 @@
                 }, { once: true });
             });
 
-            $('#copyCode').onclick = e => copyText(b.joinCode || '', e.target, 'คัดลอกรหัส');
-            $('#copyLink').onclick = e => copyText(joinLink(), e.target, 'คัดลอกลิงก์');
-            $('#invq').oninput = e => lookup(e.target.value);
-
             // เจ้าของบิล: เปลี่ยนสถานะรวม (สมาชิกทุกคนเปลี่ยนตาม)
             const s = $('#s');
             if (s) {
@@ -561,7 +478,8 @@
                 paid: allPaid || !!paidMap[n]
             }));
 
-            if (isOwner()) {
+            // ฉบับร่างยังไม่มียอดของแต่ละคน รอให้เจ้าของบิลบันทึกบิลก่อน
+            if (isOwner() && !isDraft()) {
                 try {
                     list = await api.put('/api/v1/bills/' + id + '/payments', { payments: roster });
                 } catch {}
@@ -606,7 +524,7 @@
             await reload();
         }).catch(err => {
             const msg = err.status === 403
-                ? 'คุณยังไม่ได้เป็นสมาชิกของบิลนี้ ขอรหัสจากเจ้าของบิลแล้วกด "เข้าร่วมบิล"'
+                ? 'คุณยังไม่ได้เป็นสมาชิกของบิลนี้ (บิลที่บันทึกแล้วจะเข้าร่วมด้วยรหัสไม่ได้)'
                 : err.status === 404 ? 'บิลอาจถูกลบไปแล้ว' : esc(err.message);
             $('#box').innerHTML = empty('🔍', 'เปิดบิลนี้ไม่ได้', msg,
                 '<div class="row" style="justify-content:center"><button class="btn ghost" data-join>🔑 เข้าร่วมบิล</button><a class="btn" href="/bills">กลับไปบิลของฉัน</a></div>');

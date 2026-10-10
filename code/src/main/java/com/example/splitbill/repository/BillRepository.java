@@ -57,6 +57,10 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     // สถิติของ User (ใช้ในหน้า /stats) — คำนวณใน DB ไม่ต้องโหลดบิลทั้งหมดมา
     long countByCreatedById(Long userId);
 
+    // ไม่นับบิลฉบับร่าง (ยังสร้างไม่เสร็จ ยอดเป็น 0) เพื่อไม่ให้ค่าเฉลี่ยเพี้ยน
+    @Query("SELECT COUNT(b) FROM Bill b WHERE b.createdBy.id = :userId AND (b.status IS NULL OR b.status <> 'DRAFT')")
+    long countNonDraftByCreatedById(@Param("userId") Long userId);
+
     @Query("SELECT COALESCE(SUM(b.totalAmount), 0) FROM Bill b WHERE b.createdBy.id = :userId")
     java.math.BigDecimal sumTotalAmountByCreatedById(@Param("userId") Long userId);
 }

@@ -25,6 +25,8 @@ public interface BillMemberRepository extends JpaRepository<BillMember, Long> {
     // เช็กว่าผู้ใช้เป็นสมาชิกของบิลหรือยัง
     boolean existsByBill_IdAndUser_Id(Long billId, Long userId);
 
+    Optional<BillMember> findByBill_IdAndUser_Id(Long billId, Long userId);
+
     // รายชื่อสมาชิกที่มีบัญชีของบิล (สำหรับแสดงในหน้ารายละเอียดบิล)
     @Query("SELECT new com.example.splitbill.dto.response.BillMemberResponse("
             + "m.id, m.user.id, m.user.username, m.user.email, m.role) "
