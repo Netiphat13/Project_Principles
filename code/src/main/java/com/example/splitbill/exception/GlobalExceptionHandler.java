@@ -41,6 +41,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage(), r);
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ErrorResponse> tooManyRequests(TooManyRequestsException ex, HttpServletRequest r) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), r);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> dataIntegrity(DataIntegrityViolationException ex, HttpServletRequest r) {
         return build(HttpStatus.CONFLICT, "Operation conflicts with existing data", r);
