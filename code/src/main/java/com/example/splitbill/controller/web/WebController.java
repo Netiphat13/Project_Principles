@@ -2,39 +2,33 @@ package com.example.splitbill.controller.web;
 
 import com.example.splitbill.config.WebConfig;
 import com.example.splitbill.dto.request.UserRequest;
-import com.example.splitbill.dto.response.BillSummary;
 import com.example.splitbill.exception.ConflictException;
 import com.example.splitbill.exception.InvalidCredentialsException;
-import com.example.splitbill.service.BillService;
-import com.example.splitbill.service.GroupService;
 import com.example.splitbill.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * หน้าเว็บ Thymeleaf — ชื่อ view อ้างอิงไฟล์ใน templates/html/ (ตั้ง prefix ไว้ใน application.properties)
+ * ข้อมูลบิล/โปรไฟล์ในแต่ละหน้าโหลดผ่าน REST API (/api/v1/**) ด้วย static/js/app.js
  */
 @Controller
 public class WebController {
     private static final String USER_ID = WebConfig.USER_ID;
-    private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt");
+    // รหัสเข้าร่วมบิลที่รอไว้ระหว่างพาผู้ใช้ไปล็อกอิน
+    private static final String PENDING_JOIN = "pendingJoinCode";
 
     private final UserService userService;
-    private final GroupService groupService;
-    private final BillService billService;
 
-    public WebController(UserService userService, GroupService groupService, BillService billService) {
+    public WebController(UserService userService) {
         this.userService = userService;
-        this.groupService = groupService;
-        this.billService = billService;
     }
 
     @GetMapping("/")
@@ -52,13 +46,16 @@ public class WebController {
             var user = userService.authenticate(email, password);
             // สร้าง session ใหม่หลังล็อกอิน ป้องกัน session fixation
             HttpSession old = request.getSession(false);
+            Object pendingJoin = old == null ? null : old.getAttribute(PENDING_JOIN);
             if (old != null) old.invalidate();
             HttpSession session = request.getSession(true);
             session.setAttribute(USER_ID, user.id());
             session.setAttribute("username", user.username());
-            return "redirect:/home";
+            session.setAttribute("email", user.email());
+            return pendingJoin == null ? "redirect:/home" : "redirect:" + joinUrl(pendingJoin.toString());
         } catch (InvalidCredentialsException ex) {
             ra.addFlashAttribute("error", "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+            ra.addFlashAttribute("email", email); // คงอีเมลที่กรอกไว้ในฟอร์ม
             return "redirect:/login";
         }
     }
@@ -88,36 +85,22 @@ public class WebController {
         return "redirect:/login";
     }
 
+    // ลิงก์เชิญ /join?code=SM-XXXXXX — เปิดหน้าบิลของฉันพร้อมกล่องกรอกรหัส
+    @GetMapping("/join")
+    public String join(@RequestParam(required = false) String code, HttpSession session) {
+        String clean = code == null ? "" : code.trim();
+        if (session.getAttribute(USER_ID) == null) {
+            if (!clean.isEmpty()) session.setAttribute(PENDING_JOIN, clean);
+            return "redirect:/login";
+        }
+        return clean.isEmpty() ? "redirect:/bills" : "redirect:" + joinUrl(clean);
+    }
+
     @GetMapping("/home")
-    public String home(Model model, @SessionAttribute(USER_ID) Long userId, HttpSession session) {
-        model.addAttribute("username", session.getAttribute("username"));
-        model.addAttribute("groups", groupService.findByCreator(userId, PageRequest.of(0, 6, NEWEST_FIRST)).getContent());
-        model.addAttribute("bills", billService.findByCreator(userId, PageRequest.of(0, 6, NEWEST_FIRST)).getContent());
-        return "index";
-    }
-
-    @GetMapping("/groups")
-    public String groups(Model model, @SessionAttribute(USER_ID) Long userId) {
-        model.addAttribute("groups", groupService.findByCreator(userId, PageRequest.of(0, 20, NEWEST_FIRST)).getContent());
-        model.addAttribute("userId", userId);
-        return "groups";
-    }
-
-    // หน้า group-detail ปัจจุบันอ่านข้อมูลจาก localStorage ด้วย ?id=
-    @GetMapping("/groups/detail")
-    public String groupDetailPage() { return "group-detail"; }
-
-    @GetMapping("/groups/{id}")
-    public String groupDetail(@PathVariable Long id, Model model, @SessionAttribute(USER_ID) Long userId) {
-        model.addAttribute("group", groupService.getById(id, userId)); // 403 ถ้าไม่ใช่เจ้าของ/สมาชิก
-        return "group-detail";
-    }
+    public String home() { return "index"; }
 
     @GetMapping("/bills")
-    public String bills(Model model, @SessionAttribute(USER_ID) Long userId) {
-        model.addAttribute("bills", billService.findByCreator(userId, PageRequest.of(0, 30, NEWEST_FIRST)).getContent());
-        return "bills";
-    }
+    public String bills() { return "bills"; }
 
     @GetMapping("/bills/new")
     public String newBill(Model model, @SessionAttribute(USER_ID) Long userId) {
@@ -125,28 +108,20 @@ public class WebController {
         return "create-bill";
     }
 
-    // หน้า bill-detail ปัจจุบันอ่านข้อมูลจาก localStorage ด้วย ?id=
+    // หน้า bill-detail โหลดข้อมูลจาก /api/v1/bills/{id} ด้วย ?id=
     @GetMapping("/bills/detail")
     public String billDetailPage() { return "bill-detail"; }
 
     @GetMapping("/stats")
-    public String stats(Model model, @SessionAttribute(USER_ID) Long userId) {
-        BillSummary summary = billService.summarize(userId);
-        model.addAttribute("billCount", summary.billCount());
-        model.addAttribute("total", summary.total());
-        model.addAttribute("average", summary.average());
-        return "stats";
-    }
+    public String stats() { return "stats"; }
 
     @GetMapping("/profile")
-    public String profile(Model model, @SessionAttribute(USER_ID) Long userId) {
-        model.addAttribute("user", userService.getById(userId));
-        return "profile";
-    }
+    public String profile() { return "profile"; }
 
     @GetMapping("/profile/edit")
-    public String editProfile(Model model, @SessionAttribute(USER_ID) Long userId) {
-        model.addAttribute("user", userService.getById(userId));
-        return "edit-profile";
+    public String editProfile() { return "edit-profile"; }
+
+    private static String joinUrl(String code) {
+        return UriComponentsBuilder.fromPath("/bills").queryParam("join", code).encode().toUriString();
     }
 }

@@ -23,8 +23,9 @@ public class WebConfig implements WebMvcConfigurer {
                 response.sendRedirect(request.getContextPath() + "/login");
                 return false;
             }
-        }).addPathPatterns("/home", "/groups", "/groups/**", "/bills", "/bills/**",
+        }).addPathPatterns("/home", "/bills", "/bills/**",
                 "/stats", "/profile", "/profile/**");
+        // หมายเหตุ: /join จัดการเองใน WebController (จำรหัสไว้ก่อนแล้วค่อยพาไป login)
 
         // REST API: ยังไม่ล็อกอิน -> 401 (ยกเว้นการสมัครสมาชิก POST /api/v1/users)
         registry.addInterceptor(new HandlerInterceptor() {

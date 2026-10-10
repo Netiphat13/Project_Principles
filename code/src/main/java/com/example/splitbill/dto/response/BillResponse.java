@@ -6,8 +6,9 @@ import java.time.LocalTime;
 import java.util.List;
 
 public record BillResponse(Long id, String restaurantName, LocalDate billDate,
-                           LocalTime billTime, BigDecimal subtotal,
+                           LocalTime billTime, String note, BigDecimal subtotal,
                            BigDecimal discount, BigDecimal serviceCharge,
                            BigDecimal vat, BigDecimal totalAmount,
                            String status, Long createdById, String createdByName,
-                           String splitMethod, List<BillItemResponse> items) {}
+                           String splitMethod, String splitConfigData,
+                           List<BillItemResponse> items, String joinCode, boolean hasSlip) {}

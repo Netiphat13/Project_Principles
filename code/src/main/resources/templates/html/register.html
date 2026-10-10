@@ -66,13 +66,7 @@
 
             if (f.password.value.length < 8) return fail('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
             if (f.password.value !== f.pw2.value) return fail('รหัสผ่านไม่ตรงกัน');
-
-            // เก็บชื่อไว้ให้หน้าอื่นที่ยังอ่านจาก localStorage แสดงผลได้ แล้วปล่อยให้ฟอร์ม POST ไปที่ /register
-            S.set('profile', {
-                ...getProfile(),
-                name: f.username.value.trim(),
-                email: f.email.value.trim()
-            });
+            // ข้อมูลผู้ใช้จะถูกดึงจาก server หลังล็อกอิน (ดู app.js) จึงไม่ต้องเก็บใน localStorage ตรงนี้
         };
     </script>
 </body>

@@ -1,6 +1,7 @@
-// โฟลว์สร้างบิล 5 ขั้น — ข้อมูลเก็บชั่วคราวใน localStorage (ภายหลังเปลี่ยนเป็นเรียก API)
-(() => {
-  const me = getProfile().name
+// โฟลว์สร้างบิล 5 ขั้น — คำนวณยอดใน browser แบบเรียลไทม์ แล้วบันทึกลงฐานข้อมูลผ่าน /api/v1/bills
+(async () => {
+  const { user } = await SM.ready
+  const me = user.username
   const COL = ['#bfeadd', '#ffd9a8', '#d9d0ff', '#c5dcff', '#ffc9c0', '#fff0a8']
   const ICONS = ['🍽️', '🍕', '🍗', '🥤', '🍟', '🍜', '🍣', '🥩', '🍰']
   const STEPS = ['ข้อมูลบิล', 'สมาชิก', 'รายการอาหาร', 'วิธีหาร', 'สรุป']
@@ -21,13 +22,28 @@
     ['custom', '✏️', 'กำหนดเอง', 'Custom Split']
   ]
 
+  // ชื่อเพื่อนที่ไม่มีบัญชี (เพิ่มเอง) เก็บไว้ในเครื่องเพื่อใช้ซ้ำ
   let friends = S.get('friends', [])
+
+  // เพื่อนที่มีบัญชี: ค้นด้วยอีเมลแล้วส่งคำเชิญตอนบันทึกบิล
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+  let found = null
+  let lookupMsg = ''
+  let lookupTimer
+  let lookupSeq = 0
+
+  // รหัสเข้าร่วมบิลจาก server (ถ้าเรียกไม่ได้ server จะสุ่มให้ตอนบันทึก)
+  let serverCode = ''
+  try {
+    serverCode = (await api.get('/api/v1/bills/join-code/next')).code
+  } catch {}
 
   const st = {
     step: 0,
     info: {
       shop: '',
-      date: new Date().toISOString().slice(0, 10),
+      // วันที่ตามเวลาในเครื่อง (toISOString เป็น UTC ทำให้ช่วงเช้าวันเลื่อนไปเมื่อวาน)
+      date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10),
       time: '',
       note: ''
     },
@@ -42,11 +58,50 @@
     treat: me,
     custom: {},
     paid: { [me]: true },
-    code: 'SM-' + Math.floor(1000 + Math.random() * 9000),
+    code: serverCode,
+    invited: [],
+    q: '',
+    saving: false,
     msg: ''
   }
 
-  const all = () => [me, ...friends]
+  const all = () => [...new Set([me, ...friends, ...st.invited.map(u => u.username)])]
+  const joinLink = () => location.origin + '/join?code=' + encodeURIComponent(st.code)
+
+  const resultsHtml = () => found
+    ? `<div class="kv">
+        <span class="row">${av(found.username, 28)}<span><b>${esc(found.username)}</b><span class="muted" style="display:block">${esc(found.email)}</span></span></span>
+        <button type="button" class="btn soft sm" data-act="inv">＋ เพิ่ม</button>
+      </div>`
+    : (lookupMsg ? `<p class="muted">${esc(lookupMsg)}</p>` : '')
+
+  const lookup = email => {
+    clearTimeout(lookupTimer)
+    found = null
+    lookupMsg = ''
+    const v = email.trim()
+    const seq = ++lookupSeq
+
+    if (!EMAIL_RE.test(v)) {
+      $('#invr').innerHTML = ''
+      return
+    }
+
+    lookupTimer = setTimeout(async () => {
+      try {
+        const u = await api.get('/api/v1/users/lookup?email=' + encodeURIComponent(v))
+        if (seq !== lookupSeq) return
+        if (u.id === user.id) lookupMsg = 'นี่คืออีเมลของคุณเอง'
+        else if (st.invited.some(x => x.id === u.id)) lookupMsg = 'เพิ่มคนนี้แล้ว'
+        else if (all().includes(u.username)) lookupMsg = 'มีชื่อ "' + u.username + '" ในบิลแล้ว'
+        else found = u
+      } catch (err) {
+        if (seq !== lookupSeq) return
+        lookupMsg = err.status === 404 ? 'ไม่พบผู้ใช้ที่ใช้อีเมลนี้' : err.message
+      }
+      $('#invr').innerHTML = resultsHtml()
+    }, 250)
+  }
   const color = n => COL[all().indexOf(n) % COL.length]
 
   const av = (n, s = 40) =>
@@ -60,23 +115,23 @@
   function readReceiptFile(file) {
     if (!file) return
 
-    const allowed = ['image/jpeg', 'image/png', 'application/pdf']
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']
 
     if (!allowed.includes(file.type)) {
-      st.msg = 'รองรับเฉพาะไฟล์ JPG, PNG หรือ PDF'
+      st.msg = 'รองรับเฉพาะไฟล์ JPG, PNG, WEBP, GIF หรือ PDF'
       render()
       return
     }
 
-    if (file.size > 12 * 1024 * 1024) {
-      st.msg = 'ไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ไม่เกิน 12 MB'
+    if (file.size > 8 * 1024 * 1024) {
+      st.msg = 'ไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ไม่เกิน 8 MB'
       render()
       return
     }
 
     st.msg = ''
 
-    // เก็บรูปแบบบีบอัดเพื่อไม่ให้ localStorage โตเกินจำเป็น
+    // ย่อรูปไว้แสดงตัวอย่าง ส่วนไฟล์จริงจะอัปโหลดขึ้น server ตอนบันทึกบิล
     if (file.type.startsWith('image/')) {
       const fr = new FileReader()
 
@@ -101,6 +156,7 @@
           st.receipt = {
             name: file.name,
             type: file.type,
+            file,
             dataUrl: canvas.toDataURL('image/jpeg', .82)
           }
 
@@ -115,6 +171,7 @@
       st.receipt = {
         name: file.name,
         type: file.type,
+        file,
         dataUrl: ''
       }
 
@@ -280,8 +337,8 @@
 
         <div class="card">
           <div class="row sp">
-            <h2>สแกนใบเสร็จ</h2>
-            <span class="tag">AI POWERED</span>
+            <h2>แนบสลิป / ใบเสร็จ</h2>
+            <span class="tag">ไม่บังคับ</span>
           </div>
 
           <div class="drop receipt-drop" style="margin-top:14px">
@@ -293,12 +350,12 @@
                 : 'ลากใบเสร็จมาวางที่นี่'}
             </b>
 
-            <span class="muted">รองรับ JPG, PNG, PDF</span>
+            <span class="muted">รองรับ JPG, PNG, WEBP, GIF, PDF · ไม่เกิน 8 MB</span>
 
             <input
               id="receipt-file"
               type="file"
-              accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+              accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
               hidden
             >
 
@@ -350,7 +407,7 @@
               >
                 ${av(n, 44)}
                 <b>${esc(n)}</b>
-                <span class="muted">${n === me ? 'คุณ' : 'เพื่อน'}</span>
+                <span class="muted">${n === me ? 'คุณ' : st.invited.some(u => u.username === n) ? 'มีบัญชี · จะได้รับคำเชิญ' : 'เพื่อน'}</span>
               </button>
             `).join('')}
 
@@ -360,26 +417,48 @@
                 style="background:var(--g-l);color:var(--g-d);font-size:22px"
               >＋</div>
               <b>เพิ่มเพื่อน</b>
-              <span class="muted">เชิญใหม่</span>
+              <span class="muted">เพิ่มชื่อใหม่</span>
             </button>
           </div>
         </div>
 
         <div
           class="card"
-          style="align-content:center;display:grid;gap:10px"
+          style="align-content:start;display:grid;gap:10px"
         >
-          <span class="tag" style="width:fit-content">LIVE BILL</span>
+          <span class="tag" style="width:fit-content">INVITE FRIENDS</span>
           <h2>ชวนเพื่อนเข้าร่วมบิล</h2>
           <p class="muted">
-            ส่งรหัสบิลนี้ให้เพื่อนเพื่อเลือกเมนูที่กิน (ใช้งานได้เมื่อเชื่อมระบบ)
+            หลังบันทึกบิล ให้เพื่อนกรอกรหัสนี้ที่หน้า "บิลของฉัน" → "เข้าร่วมบิล" หรือส่งลิงก์ให้
           </p>
-          <span class="code" style="width:fit-content">${st.code}</span>
-          <button
-            class="btn ghost"
-            style="width:fit-content"
-            data-act="cc"
-          >คัดลอกรหัส</button>
+          ${st.code
+            ? `<span class="code" style="width:fit-content">${esc(st.code)}</span>
+               <div class="row">
+                 <button type="button" class="btn ghost sm" data-act="cc">คัดลอกรหัส</button>
+                 <button type="button" class="btn ghost sm" data-act="cl">คัดลอกลิงก์</button>
+               </div>`
+            : '<p class="muted">ระบบจะสร้างรหัสให้เมื่อบันทึกบิล</p>'}
+
+          <div class="field" style="margin-top:6px">
+            <label for="invq">หรือเชิญเพื่อนที่มีบัญชีด้วยอีเมล</label>
+            <input
+              class="in"
+              id="invq"
+              type="email"
+              placeholder="อีเมลเพื่อน เช่น name@email.com"
+              autocomplete="off"
+              value="${esc(st.q)}"
+            >
+          </div>
+          <div id="invr">${resultsHtml()}</div>
+          ${st.invited.length
+            ? `<div class="chips">${st.invited.map(u => `
+                <span class="chip on">${esc(u.username)}
+                  <button type="button" data-act="uninv" data-uid="${u.id}" aria-label="ยกเลิกคำเชิญ"
+                    style="border:0;background:none;cursor:pointer">✕</button>
+                </span>`).join('')}</div>
+               <p class="muted">คำเชิญจะถูกส่งเมื่อบันทึกบิล</p>`
+            : ''}
         </div>
       </div>
     `,
@@ -848,7 +927,7 @@
         >← ย้อนกลับ</button>
 
         <button class="btn" data-act="nx">
-          ${st.step === 4 ? '✓ บันทึกบิล' : 'ถัดไป →'}
+          ${st.step === 4 ? (st.saving ? 'กำลังบันทึก...' : '✓ บันทึกบิล') : 'ถัดไป →'}
         </button>
       </div>
     `
@@ -959,48 +1038,74 @@
     $('#dI').showModal()
   }
 
-  function save() {
-    const c = calc()
-    const l = S.get('bills', [])
-    const id = newId(l)
-    const i = st.info
+  async function save() {
+    if (st.saving) return
+    st.saving = true
+    render()
 
-    l.push({
-      id,
-      shop: i.shop.trim(),
-      date: i.date,
-      time: i.time,
-      note: i.note.trim(),
-      receipt: st.receipt,
-      total: Math.round(c.net * 100) / 100,
-      people: st.sel.length,
-      status: st.sel.every(n => st.paid[n]) ? 'paid' : 'pending',
-      method: st.method,
-      items: st.items,
+    const c = calc()
+    const i = st.info
+    const round2 = n => Math.round(n * 100) / 100
+
+    // รายละเอียดการแบ่งที่หน้า "รายละเอียดบิล" ใช้แสดงผล
+    const config = {
+      version: 1,
       members: st.sel,
       shares: c.share,
-      sub: c.sub,
-      disc: c.disc,
-      svc: c.svc,
-      vat: c.vat,
-      fair: c.fair,
       paid: st.paid,
-      code: st.code,
-      owner: me,
-      paymentSlips: {}
-    })
+      items: st.items,
+      fairness: c.fair,
+      servicePercent: st.svc,
+      vatPercent: st.vat,
+      pct: st.pct,
+      treat: st.treat,
+      custom: st.custom
+    }
 
-    S.set('bills', l)
+    try {
+      const created = await api.post('/api/v1/bills', {
+        restaurantName: i.shop.trim(),
+        billDate: i.date || null,
+        billTime: i.time || null,
+        note: i.note.trim() || null,
+        discount: round2(c.disc),
+        serviceCharge: round2(c.svc),
+        vat: round2(c.vat),
+        splitMethod: st.method,
+        splitConfigData: JSON.stringify(config),
+        items: st.items.map(x => ({ name: x.name, quantity: x.qty, unitPrice: round2(x.price) })),
+        joinCode: st.code || null
+      })
 
-    notify(
-      'สร้างบิล "' + i.shop.trim() + '" ยอด ' +
-      money(c.net) + ' เรียบร้อยแล้ว'
-    )
+      // ส่งคำเชิญให้เพื่อนที่มีบัญชี
+      const sent = await Promise.allSettled(
+        st.invited
+          .filter(u => st.sel.includes(u.username))
+          .map(u => api.post('/api/v1/bills/' + created.id + '/invitations', { inviteeId: u.id }))
+      )
+      if (sent.some(r => r.status === 'rejected')) {
+        notify('บันทึกบิลแล้ว แต่ส่งคำเชิญบางคนไม่สำเร็จ เชิญใหม่ได้ที่หน้ารายละเอียดบิล')
+      }
 
-    location = '/bills/detail?id=' + id
+      // อัปโหลดสลิป/ใบเสร็จ (ถ้ามี)
+      if (st.receipt?.file) {
+        try {
+          await api.upload('/api/v1/bills/' + created.id + '/slip', st.receipt.file)
+        } catch {
+          notify('บันทึกบิลแล้ว แต่อัปโหลดสลิปไม่สำเร็จ แนบใหม่ได้ที่หน้ารายละเอียดบิล')
+        }
+      }
+
+      notify('สร้างบิล "' + i.shop.trim() + '" ยอด ' + money(c.net) + ' เรียบร้อยแล้ว')
+      location = '/bills/detail?id=' + created.id
+    } catch (err) {
+      st.saving = false
+      st.msg = 'บันทึกไม่สำเร็จ: ' + err.message
+      render()
+    }
   }
 
-  document.addEventListener('click', e => {
+  document.addEventListener('click', async e => {
     const b = e.target.closest('[data-act]')
     if (!b) return
 
@@ -1037,8 +1142,31 @@
     } else if (a === 'af') {
       $('#dF').showModal()
       return
-    } else if (a === 'cc') {
-      navigator.clipboard?.writeText(st.code)
+    } else if (a === 'cc' || a === 'cl') {
+      navigator.clipboard?.writeText(a === 'cc' ? st.code : joinLink())
+      b.textContent = 'คัดลอกแล้ว ✓'
+      return
+    } else if (a === 'inv') {
+      const u = found
+      if (u && !st.invited.some(x => x.id === u.id)) {
+        st.invited.push(u)
+        if (!st.sel.includes(u.username)) st.sel.push(u.username)
+        st.items.forEach(i => {
+          if (!i.eaters.includes(u.username)) i.eaters.push(u.username)
+        })
+        st.q = ''
+        found = null
+        lookupMsg = ''
+      }
+    } else if (a === 'uninv') {
+      const u = st.invited.find(x => x.id === +b.dataset.uid)
+      if (u) {
+        st.invited = st.invited.filter(x => x !== u)
+        st.sel = st.sel.filter(x => x !== u.username)
+        st.items.forEach(i => {
+          i.eaters = i.eaters.filter(x => x !== u.username)
+        })
+      }
     } else if (a === 'ai') {
       return openItem()
     } else if (a === 'ei') {
@@ -1063,7 +1191,7 @@
       st.msg = check()
 
       if (!st.msg) {
-        if (st.step === 4) return save()
+        if (st.step === 4) return await save()
         st.step++
       }
     }
@@ -1072,6 +1200,12 @@
   })
 
   document.addEventListener('input', e => {
+    if (e.target.id === 'invq') {
+      st.q = e.target.value
+      lookup(st.q)
+      return
+    }
+
     const k = e.target.dataset.in
     if (k) st.info[k] = e.target.value
   })
@@ -1167,4 +1301,4 @@
   })
 
   render()
-})()
+})().catch(err => console.error(err))

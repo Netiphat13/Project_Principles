@@ -74,7 +74,7 @@
                             </div>
                             <div>
                                 <b id="n3">0</b>
-                                <div class="muted" style="font-size:10px">กลุ่ม</div>
+                                <div class="muted" style="font-size:10px">บิลที่เข้าร่วม</div>
                             </div>
                         </div>
 
@@ -124,22 +124,38 @@
 
     <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
     <script>
-        const p = getProfile(), b = S.get('bills', []);
-        $('#bio').textContent = p.bio || '';
-        $('#n1').textContent = b.length;
-        $('#n2').textContent = baht(b.reduce((a, x) => a + +x.total, 0));
-        $('#n3').textContent = S.get('groups', []).length;
+        SM.ready.then(async ({ user }) => {
+            $('#bio').textContent = user.bio || '';
 
-        const t = $('#t1'), on = S.get('notify', true);
-        t.classList.toggle('on', on);
-        t.setAttribute('aria-checked', on);
+            try {
+                const b = await SM.loadBills();
+                const mine = b.filter(x => x.createdById === user.id);
+                $('#n1').textContent = b.length;
+                $('#n2').textContent = baht(b.reduce((a, x) => a + Number(x.totalAmount || 0), 0));
+                $('#n3').textContent = b.length - mine.length;
+            } catch {}
 
-        t.onclick = () => {
-            const v = !t.classList.contains('on');
-            S.set('notify', v);
-            t.classList.toggle('on', v);
-            t.setAttribute('aria-checked', v);
-        };
+            // การแจ้งเตือน: บันทึกลงฐานข้อมูล (user_settings)
+            const t = $('#t1');
+            const paintToggle = v => {
+                t.classList.toggle('on', v);
+                t.setAttribute('aria-checked', v);
+            };
+            paintToggle(user.notificationEnabled !== false);
+
+            t.onclick = async () => {
+                const v = !t.classList.contains('on');
+                t.disabled = true;
+                try {
+                    await api.patch('/api/v1/users/me/settings/notification', { notificationEnabled: v });
+                    S.set('notify', v);
+                    paintToggle(v);
+                } catch (err) {
+                    alert('เปลี่ยนการแจ้งเตือนไม่สำเร็จ: ' + err.message);
+                }
+                t.disabled = false;
+            };
+        }).catch(() => {});
 
         $('#out').onclick = () => location = '/logout';
     </script>

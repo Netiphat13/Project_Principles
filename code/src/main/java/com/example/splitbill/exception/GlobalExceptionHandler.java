@@ -9,6 +9,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -38,6 +41,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage(), r);
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ErrorResponse> tooManyRequests(TooManyRequestsException ex, HttpServletRequest r) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), r);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> dataIntegrity(DataIntegrityViolationException ex, HttpServletRequest r) {
         return build(HttpStatus.CONFLICT, "Operation conflicts with existing data", r);
@@ -59,6 +67,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
     public ResponseEntity<ErrorResponse> badRequest(Exception ex, HttpServletRequest r) {
         return build(HttpStatus.BAD_REQUEST, "Malformed request", r);
+    }
+
+    // ข้อมูลไม่ถูกต้องตามกฎของระบบ เช่น รหัสบิลว่าง หรือชนิดไฟล์สลิปไม่รองรับ
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> illegalArgument(IllegalArgumentException ex, HttpServletRequest r) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), r);
+    }
+
+    @ExceptionHandler({MissingServletRequestParameterException.class, MissingServletRequestPartException.class})
+    public ResponseEntity<ErrorResponse> missingParam(Exception ex, HttpServletRequest r) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), r);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> tooLarge(MaxUploadSizeExceededException ex, HttpServletRequest r) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "ไฟล์ใหญ่เกิน 8 MB", r);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

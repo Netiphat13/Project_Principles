@@ -42,3 +42,6 @@ code/src/main/resources/application.properties
 # Ignore build output
 code/target/
 .env
+
+# ไฟล์สลิปที่ผู้ใช้อัปโหลด
+code/uploads/

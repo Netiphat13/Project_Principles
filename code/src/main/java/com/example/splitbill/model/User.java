@@ -4,8 +4,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -51,13 +49,6 @@ private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "user")
     private List<BillMember> billMembers = new ArrayList<>();
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "createdBy")
-    private List<Group> groups = new ArrayList<>();
-
-    @OneToMany(mappedBy = "user")
-    private List<GroupMember> groupMembers = new ArrayList<>();
 
     @OneToMany(mappedBy = "user")
     private List<Notification> notifications = new ArrayList<>();
@@ -140,13 +131,7 @@ private LocalDateTime updatedAt;
         return billMembers;
     }
 
-    public List<Group> getGroups() {
-        return groups;
-    }
 
-    public List<GroupMember> getGroupMembers() {
-        return groupMembers;
-    }
 
     public List<Notification> getNotifications() {
         return notifications;

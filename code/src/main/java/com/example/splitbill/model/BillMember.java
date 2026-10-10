@@ -41,6 +41,10 @@ public class BillMember {
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 
+    // OWNER = ผู้สร้างบิล, MEMBER = เพื่อนที่เข้าร่วมด้วยรหัสหรือคำเชิญ
+    @Column(length = 50)
+    private String role;
+
     @OneToMany(mappedBy = "billMember")
     private List<ItemAssignment> assignments = new ArrayList<>();
 
@@ -148,5 +152,13 @@ public class BillMember {
 
     public void setSettlementsTo(List<Settlement> settlementsTo) {
         this.settlementsTo = settlementsTo;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 }

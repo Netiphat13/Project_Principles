@@ -66,23 +66,25 @@
 
                     <div class="field">
                         <label>ชื่อ-นามสกุล</label>
-                        <input class="in" name="name" required maxlength="60">
+                        <input class="in" name="name" required maxlength="100">
                     </div>
 
                     <div class="field">
                         <label>อีเมล</label>
-                        <input class="in" type="email" name="email">
+                        <input class="in" type="email" name="email" readonly title="อีเมลที่ใช้ล็อกอิน แก้ไขไม่ได้">
                     </div>
 
                     <div class="field">
                         <label>เบอร์โทรศัพท์</label>
-                        <input class="in" type="tel" name="phone" placeholder="08x-xxx-xxxx">
+                        <input class="in" type="tel" name="phone" maxlength="50" placeholder="08x-xxx-xxxx">
                     </div>
 
                     <div class="field">
                         <label>แนะนำตัว (ไม่บังคับ)</label>
-                        <textarea class="in" name="bio" rows="3" maxlength="120"></textarea>
+                        <textarea class="in" name="bio" rows="3" maxlength="500"></textarea>
                     </div>
+
+                    <div class="err" id="err"></div>
 
                     <div class="row" style="justify-content:flex-end">
                         <a class="btn ghost" href="/profile">ยกเลิก</a>
@@ -95,27 +97,36 @@
 
     <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
     <script>
-        const f = $('#f'), p = getProfile();
-
-        ['name', 'email', 'phone', 'bio'].forEach(k => f[k].value = p[k] || '');
-
+        const f = $('#f');
         const pv = () => $('#pv').textContent = (f.name.value[0] || 'P').toUpperCase();
-
-        pv();
         f.name.oninput = pv;
 
-        f.onsubmit = e => {
-            e.preventDefault();
+        SM.ready.then(({ user }) => {
+            f.name.value = user.username || '';
+            f.email.value = user.email || '';
+            f.phone.value = user.phone || '';
+            f.bio.value = user.bio || '';
+            pv();
 
-            S.set('profile', {
-                name: f.name.value.trim(),
-                email: f.email.value.trim(),
-                phone: f.phone.value.trim(),
-                bio: f.bio.value.trim()
-            });
-
-            location = '/profile';
-        };
+            // บันทึกชื่อ เบอร์โทร และแนะนำตัวลงฐานข้อมูล (อีเมลใช้ล็อกอิน จึงแก้จากหน้านี้ไม่ได้)
+            f.onsubmit = async e => {
+                e.preventDefault();
+                const btn = e.submitter;
+                if (btn) btn.disabled = true;
+                try {
+                    await api.put('/api/v1/users/me/profile', {
+                        username: f.name.value.trim(),
+                        phone: f.phone.value.trim(),
+                        bio: f.bio.value.trim()
+                    });
+                    notify('บันทึกโปรไฟล์เรียบร้อยแล้ว');
+                    location = '/profile';
+                } catch (err) {
+                    $('#err').textContent = 'บันทึกไม่สำเร็จ: ' + err.message;
+                    if (btn) btn.disabled = false;
+                }
+            };
+        }).catch(() => {});
     </script>
 </body>
 

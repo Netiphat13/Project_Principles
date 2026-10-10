@@ -19,5 +19,9 @@ public record BillRequest(
         @DecimalMin("0.00") BigDecimal serviceCharge,
         @DecimalMin("0.00") BigDecimal vat,
         @Size(max = 50) String splitMethod,
-        @Valid List<BillItemRequest> items
+        // รายละเอียดการแบ่ง (JSON string) ที่หน้าสร้างบิลคำนวณไว้
+        @Size(max = 100_000) String splitConfigData,
+        @Valid List<BillItemRequest> items,
+        // รหัสเข้าร่วมที่หน้าเว็บแสดงไว้ (ถ้าซ้ำหรือว่าง server จะสุ่มใหม่)
+        @Size(max = 12) String joinCode
 ) {}

@@ -12,6 +12,8 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "split_configs")
@@ -28,6 +30,8 @@ public class SplitConfig {
     @Column(name = "split_method", nullable = false, length = 50)
     private String splitMethod;
 
+    // เก็บรายละเอียดการแบ่ง (สมาชิก, ยอดแต่ละคน, ใครกินอะไร) เป็น JSON
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String configData;
 

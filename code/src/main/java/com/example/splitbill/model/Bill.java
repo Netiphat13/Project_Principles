@@ -59,6 +59,14 @@ public class Bill {
     @Column(length = 50)
     private String status;
 
+    // รหัสให้เพื่อนกรอกเพื่อเข้าร่วมบิล เช่น SM-AB12CD
+    @Column(name = "join_code", unique = true, length = 12)
+    private String joinCode;
+
+    // ชื่อไฟล์สลิป/ใบเสร็จที่เก็บไว้บน server (ไม่ใช่ path เต็ม)
+    @Column(name = "slip_image", length = 255)
+    private String slipImage;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -239,5 +247,21 @@ public class Bill {
 
     public void setSettlements(List<Settlement> settlements) {
         this.settlements = settlements;
+    }
+
+    public String getJoinCode() {
+        return joinCode;
+    }
+
+    public void setJoinCode(String joinCode) {
+        this.joinCode = joinCode;
+    }
+
+    public String getSlipImage() {
+        return slipImage;
+    }
+
+    public void setSlipImage(String slipImage) {
+        this.slipImage = slipImage;
     }
 }

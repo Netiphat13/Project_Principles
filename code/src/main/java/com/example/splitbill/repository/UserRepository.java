@@ -16,4 +16,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // เช็กว่าอีเมลถูกใช้แล้วหรือยัง (ใช้ใน UserServiceImpl)
     boolean existsByEmail(String email);
+
+    // ค้นหา/เช็กอีเมลแบบไม่สนตัวพิมพ์เล็ก-ใหญ่ (ใช้ตอนสมัครและล็อกอิน)
+    Optional<User> findByEmailIgnoreCase(String email);
+
+    boolean existsByEmailIgnoreCase(String email);
 }

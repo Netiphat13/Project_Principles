@@ -133,6 +133,11 @@ a {
     color: var(--red)
 }
 
+.pill.cancelled {
+    background: var(--line);
+    color: var(--mut)
+}
+
 .muted {
     color: var(--mut);
     font-size: 12px

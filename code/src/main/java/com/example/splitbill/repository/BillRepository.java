@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -34,6 +35,21 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
             LocalDate startDate,
             LocalDate endDate
     );
+
+    // ลบบิลด้วย SQL ตรง ๆ ให้ฐานข้อมูลลบรายการอาหาร/สมาชิก/วิธีหาร/คำเชิญตาม (ON DELETE CASCADE)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM Bill b WHERE b.id = :id")
+    void deleteBillById(@Param("id") Long id);
+
+    // ค้นหาบิลจากรหัสเข้าร่วม (ใช้ตอนเพื่อนกรอกรหัส)
+    java.util.Optional<Bill> findByJoinCode(String joinCode);
+
+    boolean existsByJoinCode(String joinCode);
+
+    // บิลที่ผู้ใช้เห็นได้ = บิลที่ตัวเองสร้าง + บิลที่เข้าร่วมเป็นสมาชิก
+    @Query("SELECT b FROM Bill b WHERE b.createdBy.id = :userId "
+            + "OR EXISTS (SELECT m FROM BillMember m WHERE m.bill = b AND m.user.id = :userId)")
+    Page<Bill> findVisibleByUser(@Param("userId") Long userId, Pageable pageable);
 
     // ดึงบิลของ User แบบแบ่งหน้า (ใช้ใน BillServiceImpl)
     Page<Bill> findByCreatedById(Long userId, Pageable pageable);

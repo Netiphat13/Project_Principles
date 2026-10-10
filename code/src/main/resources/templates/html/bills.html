@@ -58,32 +58,10 @@
                     </div>
 
                     <div class="row">
-                        <button type="button" class="btn ghost" id="joinBill">🔑 กรอกรหัสเข้าร่วมบิล</button>
+                        <button type="button" class="btn ghost" data-join>🔑 กรอกรหัสเข้าร่วมบิล</button>
                         <a href="/bills/new" class="btn">＋ สร้างบิลใหม่</a>
                     </div>
                 </div>
-
-                <dialog id="joinDialog">
-                    <form id="joinForm">
-                        <h2 style="margin-bottom:6px">เข้าร่วมบิลของเพื่อน</h2>
-                        <p class="muted" style="margin-bottom:14px">
-                            กรอกรหัสบิลที่เพื่อนส่งมาให้ เช่น SM-1234
-                        </p>
-
-                        <div class="field">
-                            <label for="joinCode">รหัสบิล</label>
-                            <input class="in" id="joinCode" name="code" required maxlength="12"
-                                placeholder="SM-1234" autocomplete="off">
-                        </div>
-
-                        <div class="err" id="joinErr"></div>
-
-                        <div class="row" style="justify-content:flex-end">
-                            <button type="button" class="btn ghost" id="joinCancel">ยกเลิก</button>
-                            <button class="btn">เข้าร่วมบิล</button>
-                        </div>
-                    </form>
-                </dialog>
 
                 <div class="card row sp" style="margin-bottom:16px;flex-wrap:wrap">
                     <input class="in" id="q" style="max-width:260px" placeholder="ค้นหาร้านหรือชื่อบิล...">
@@ -98,7 +76,8 @@
     <script src="../../static/js/app.js" th:src="@{/js/app.js}"></script>
     <script>
         let f = 'all';
-        const all = S.get('bills', []);
+        let all = [];
+        let meId = null;
         const T = [
             ['all', 'ทั้งหมด'],
             ['paid', 'จ่ายแล้ว'],
@@ -111,13 +90,13 @@
 
             $('#chips').innerHTML = T.map(([k, t]) =>
                 `<button class="chip${f === k ? ' on' : ''}" data-k="${k}">
-                    ${t} (${k === 'all' ? all.length : all.filter(b => b.status === k).length})
+                    ${t} (${k === 'all' ? all.length : all.filter(b => statusKey(b.status) === k).length})
                 </button>`
             ).join('');
 
             const l = all.filter(b =>
-                (f === 'all' || b.status === f) &&
-                b.shop.toLowerCase().includes(q)
+                (f === 'all' || statusKey(b.status) === f) &&
+                String(b.restaurantName || '').toLowerCase().includes(q)
             );
 
             $('#list').innerHTML = l.length
@@ -125,15 +104,15 @@
                     <div class="card">
                         <div class="row sp">
                             <div class="ico" style="background:#fff1e0">🍽️</div>
-                            <span class="pill ${b.status}">${ST[b.status]}</span>
+                            <span class="pill ${statusKey(b.status)}">${statusLabel(b.status)}</span>
                         </div>
 
-                        <h2 style="margin:12px 0 2px">${esc(b.shop)}</h2>
-                        <p class="muted">📅 ${fmtDate(b.date)}</p>
+                        <h2 style="margin:12px 0 2px">${esc(b.restaurantName)}</h2>
+                        <p class="muted">📅 ${fmtDate(b.billDate)} · ${b.createdById === meId ? 'คุณเป็นเจ้าของ' : 'โดย ' + esc(b.createdByName)}</p>
 
                         <div class="row sp" style="border-top:1px solid var(--line);margin:10px 0;padding-top:10px">
-                            <span class="muted">👥 ${b.people} คน</span>
-                            <b style="font-size:18px">${baht(b.total)}</b>
+                            <span class="muted">🔑 ${esc(b.joinCode || '-')}</span>
+                            <b style="font-size:18px">${baht(b.totalAmount)}</b>
                         </div>
 
                         <a class="btn soft block" href="/bills/detail?id=${b.id}">ดูรายละเอียด →</a>
@@ -144,7 +123,7 @@
                     : empty(
                         '🧾',
                         'ยังไม่มีบิล',
-                        'สร้างบิลแรกเพื่อเริ่มติดตาม',
+                        'สร้างบิลแรก หรือกรอกรหัสเพื่อเข้าร่วมบิลของเพื่อน',
                         '<a class="btn" href="/bills/new">＋ สร้างบิลใหม่</a>'
                     );
 
@@ -156,57 +135,13 @@
 
         $('#q').oninput = draw;
 
-        const joinDialog = $('#joinDialog');
-        const joinForm = $('#joinForm');
-        const joinErr = $('#joinErr');
-        const joinCode = $('#joinCode');
-
-        $('#joinBill').onclick = () => {
-            joinErr.textContent = '';
-            joinForm.reset();
-            joinDialog.showModal();
-            setTimeout(() => joinCode.focus(), 0);
-        };
-
-        $('#joinCancel').onclick = () => joinDialog.close();
-
-        joinForm.onsubmit = e => {
-            e.preventDefault();
-
-            const code = joinCode.value.trim().toUpperCase();
-            const me = getProfile().name;
-            const bills = S.get('bills', []);
-            const b = bills.find(x => String(x.code || '').toUpperCase() === code);
-
-            if (!b) {
-                joinErr.textContent = 'ไม่พบรหัสบิลนี้ กรุณาตรวจสอบรหัสอีกครั้ง';
-                return;
-            }
-
-            b.members = Array.isArray(b.members) ? b.members : [];
-            b.paid = b.paid || {};
-            b.shares = b.shares || {};
-            b.paymentSlips = b.paymentSlips || {};
-            b.owner = b.owner || b.members[0] || me;
-
-            if (!b.members.includes(me)) {
-                b.members.push(me);
-                b.people = b.members.length;
-                b.paid[me] = false;
-                b.shares[me] = 0;
-                b.status = 'pending';
-
-                S.set('bills', bills);
-                notify('เข้าร่วมบิล "' + b.shop + '" เรียบร้อยแล้ว');
-            } else {
-                S.set('bills', bills);
-            }
-
-            joinDialog.close();
-            location = '/bills/detail?id=' + b.id;
-        };
-
-        draw();
+        SM.ready.then(async ({ user }) => {
+            meId = user.id;
+            all = await SM.loadBills();
+            draw();
+        }).catch(err => {
+            $('#list').innerHTML = empty('⚠️', 'โหลดข้อมูลไม่สำเร็จ', esc(err.message));
+        });
     </script>
 </body>
 
